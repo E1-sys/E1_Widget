@@ -5,6 +5,8 @@ import streamlit as st
 import copy
 import os
 import json
+import zipfile
+import io
 
 # ---- 전역 스타일 설정 ----
 st.markdown("""
@@ -30,7 +32,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- 관리자 ID 목록 정의 ----
-ADMIN_IDS = ["admin", "superuser"]
+ADMIN_IDS = ["admin"]
 
 # ---- 사용자 ID 입력 ----
 user_id = st.text_input("사번 또는 사용자 ID를 입력하세요", value="", placeholder="예: honggildong")
@@ -220,6 +222,33 @@ with st.sidebar:
                 st.rerun()
             else:
                 st.warning("해당 사용자의 데이터가 없습니다.")
+
+        st.markdown("---")
+        st.subheader("📦 전체 사용자 데이터 백업/복원")
+        
+        # 백업 다운로드
+        if st.button("💾 전체 사용자 데이터 백업"):
+            backup_buffer = io.BytesIO()
+            with zipfile.ZipFile(backup_buffer, 'w') as zipf:
+                for filename in os.listdir(SAVE_DIR):
+                    if filename.endswith("_sites.json"):
+                        filepath = os.path.join(SAVE_DIR, filename)
+                        zipf.write(filepath, arcname=filename)
+            st.download_button("📥 백업 파일 다운로드", data=backup_buffer.getvalue(),
+                               file_name="backup_sites.zip", mime="application/zip")
+        
+        # 복원 업로드
+        uploaded_zip = st.file_uploader("📤 백업 파일 업로드 (zip)", type=["zip"])
+        if uploaded_zip is not None:
+            with zipfile.ZipFile(uploaded_zip) as zipf:
+                for member in zipf.namelist():
+                    if member.endswith("_sites.json"):
+                        with zipf.open(member) as f:
+                            file_data = f.read()
+                            save_path = os.path.join(SAVE_DIR, os.path.basename(member))
+                            with open(save_path, "wb") as out_file:
+                                out_file.write(file_data)
+                st.success("📁 사용자 데이터가 성공적으로 복원되었습니다. 페이지를 새로고침 해주세요.")
 
 # ---- 제목 ----
 st.markdown("""<h1 style='color: #FF6F00;'>E1 Link</h1>""", unsafe_allow_html=True)
