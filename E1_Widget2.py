@@ -174,20 +174,13 @@ def display_links(tab_name):
 # ---- 사이드바 ----
 with st.sidebar:
     st.header("검색")
+    search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{user_id}")
     
-    search_col1, search_col2 = st.columns([5, 1])
-    
-    with search_col1:
-        search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{user_id}", label_visibility="collapsed")
-
-    with search_col2:
-        if st.button("❌", key=f"clear_search_btn_{user_id}", help="검색어 지우기"):
-            search_query = ""
-            st.session_state[f"do_search_{user_id}"] = False
-            st.rerun()
-
     if st.button("🔍 검색", key=f"search_btn_{user_id}"):
         st.session_state[f"do_search_{user_id}"] = True
+
+    st.markdown("---")
+    st.header("탭 관리")
     
     # 탭 추가
     new_tab_name = st.text_input("새 탭 이름", key=f"new_tab_{user_id}")
