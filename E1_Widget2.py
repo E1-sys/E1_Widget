@@ -1,12 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
-#!/usr/bin/env python
-# coding: utf-8
-
 import streamlit as st
 import copy
 import os
@@ -35,11 +29,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# ---- 관리자 ID 목록 정의 ----
+ADMIN_IDS = ["admin", "superuser"]
+
 # ---- 사용자 ID 입력 ----
 user_id = st.text_input("사번 또는 사용자 ID를 입력하세요", value="", placeholder="예: honggildong")
 if not user_id:
     st.warning("사번 또는 사용자 ID를 입력해주세요.")
     st.stop()
+
+is_admin = user_id in ADMIN_IDS
+
+SAVE_DIR = "sites_data"
+os.makedirs(SAVE_DIR, exist_ok=True)
 
 # ---- 기본 사이트 데이터 ----
 sites_original = {
@@ -69,17 +71,14 @@ sites_original = {
     }
 }
 
-SAVE_DIR = "sites_data"
-os.makedirs(SAVE_DIR, exist_ok=True)
-
 # ---- 데이터 로딩 및 저장 ----
-def save_sites(user_id):
-    file_path = os.path.join(SAVE_DIR, f"{user_id}_sites.json")
+def save_sites(uid):
+    file_path = os.path.join(SAVE_DIR, f"{uid}_sites.json")
     with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(st.session_state[f"sites_{user_id}"], f, ensure_ascii=False, indent=2)
+        json.dump(st.session_state[f"sites_{uid}"], f, ensure_ascii=False, indent=2)
 
-def load_sites(user_id):
-    file_path = os.path.join(SAVE_DIR, f"{user_id}_sites.json")
+def load_sites(uid):
+    file_path = os.path.join(SAVE_DIR, f"{uid}_sites.json")
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -91,34 +90,43 @@ def load_sites(user_id):
     else:
         return copy.deepcopy(sites_original)
 
+# ---- 관리자일 경우 사용자 선택 ----
+if is_admin:
+    all_files = os.listdir(SAVE_DIR)
+    all_user_ids = sorted(set(f.replace("_sites.json", "") for f in all_files if f.endswith("_sites.json")))
+    selected_user = st.selectbox("조회할 사용자 선택", all_user_ids, key="admin_user_select")
+    viewing_user_id = selected_user
+else:
+    viewing_user_id = user_id
+
 LINKS_PER_PAGE = 8
 
 # ---- 세션 상태 초기화 ----
-if f"sites_{user_id}" not in st.session_state:
-    st.session_state[f"sites_{user_id}"] = load_sites(user_id)
-    st.session_state[f"pages_{user_id}"] = {tab: 0 for tab in st.session_state[f"sites_{user_id}"]}
+if f"sites_{viewing_user_id}" not in st.session_state:
+    st.session_state[f"sites_{viewing_user_id}"] = load_sites(viewing_user_id)
+    st.session_state[f"pages_{viewing_user_id}"] = {tab: 0 for tab in st.session_state[f"sites_{viewing_user_id}"]}
 
-current_sites = st.session_state[f"sites_{user_id}"]
-current_pages = st.session_state[f"pages_{user_id}"]
+current_sites = st.session_state[f"sites_{viewing_user_id}"]
+current_pages = st.session_state[f"pages_{viewing_user_id}"]
 
 # ---- 링크 관리 함수 ----
 def delete_link(tab_name, index):
     del current_sites[tab_name]["links"][index]
-    save_sites(user_id)
+    save_sites(viewing_user_id)
 
 def add_link(tab_name, title, url):
     current_sites[tab_name]["links"].append({"description": title, "url": url, "favorite": False})
-    save_sites(user_id)
+    save_sites(viewing_user_id)
 
 def toggle_favorite(tab_name, index):
     current_sites[tab_name]["links"][index]["favorite"] = not current_sites[tab_name]["links"][index].get("favorite", False)
-    save_sites(user_id)
+    save_sites(viewing_user_id)
 
 def add_tab(tab_name):
     if tab_name and tab_name not in current_sites:
         current_sites[tab_name] = {"description": tab_name, "links": []}
         current_pages[tab_name] = 0
-        save_sites(user_id)
+        save_sites(viewing_user_id)
 
 # ---- 링크 표시 ----
 def display_links(tab_name):
@@ -174,17 +182,14 @@ def display_links(tab_name):
 # ---- 사이드바 ----
 with st.sidebar:
     st.header("검색")
-    search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{user_id}")
-    
-    if st.button("🔍 검색", key=f"search_btn_{user_id}"):
-        st.session_state[f"do_search_{user_id}"] = True
+    search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{viewing_user_id}")
+    if st.button("🔍 검색", key=f"search_btn_{viewing_user_id}"):
+        st.session_state[f"do_search_{viewing_user_id}"] = True
 
     st.markdown("---")
     st.header("탭 관리")
-    
-    # 탭 추가
-    new_tab_name = st.text_input("새 탭 이름", key=f"new_tab_{user_id}")
-    if st.button("탭 추가", key=f"add_tab_btn_{user_id}"):
+    new_tab_name = st.text_input("새 탭 이름", key=f"new_tab_{viewing_user_id}")
+    if st.button("탭 추가", key=f"add_tab_btn_{viewing_user_id}"):
         if not new_tab_name.strip():
             st.warning("탭 이름을 입력하세요.")
         elif new_tab_name in current_sites:
@@ -194,15 +199,27 @@ with st.sidebar:
             st.success(f"'{new_tab_name.strip()}' 탭이 추가되었습니다.")
             st.rerun()
 
-    # 탭 삭제
-    delete_tab_name = st.selectbox("삭제할 탭 선택", options=list(current_sites.keys()), key=f"delete_tab_{user_id}")
-    if st.button("탭 삭제", key=f"delete_tab_btn_{user_id}"):
+    delete_tab_name = st.selectbox("삭제할 탭 선택", options=list(current_sites.keys()), key=f"delete_tab_{viewing_user_id}")
+    if st.button("탭 삭제", key=f"delete_tab_btn_{viewing_user_id}"):
         if delete_tab_name in current_sites:
             del current_sites[delete_tab_name]
             del current_pages[delete_tab_name]
-            save_sites(user_id)
+            save_sites(viewing_user_id)
             st.success(f"'{delete_tab_name}' 탭이 삭제되었습니다.")
             st.rerun()
+
+    if is_admin:
+        st.markdown("---")
+        st.subheader("사용자 데이터 삭제")
+        del_user = st.selectbox("삭제할 사용자", all_user_ids, key="admin_del_user")
+        if st.button("❌ 사용자 데이터 삭제"):
+            file_path = os.path.join(SAVE_DIR, f"{del_user}_sites.json")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                st.success(f"{del_user}의 데이터가 삭제되었습니다.")
+                st.rerun()
+            else:
+                st.warning("해당 사용자의 데이터가 없습니다.")
 
 # ---- 제목 ----
 st.markdown("""<h1 style='color: #FF6F00;'>E1 Link</h1>""", unsafe_allow_html=True)
@@ -236,4 +253,3 @@ st.markdown("""
         </div>
     </div>
 """, unsafe_allow_html=True)
-
