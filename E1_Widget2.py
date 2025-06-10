@@ -4,12 +4,44 @@
 # In[1]:
 
 
+#!/usr/bin/env python
+# coding: utf-8
+
 import streamlit as st
 import copy
 import os
 import json
 
-# 원본 사이트 데이터
+# ---- 전역 스타일 설정 ----
+st.markdown("""
+    <style>
+        * {
+            font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+        }
+        .bottom-links {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px 20px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }
+        .bottom-links a {
+            margin: 0 10px;
+            white-space: nowrap;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# ---- 사용자 ID 입력 ----
+user_id = st.text_input("사번 또는 사용자 ID를 입력하세요", value="", placeholder="예: honggildong")
+if not user_id:
+    st.warning("사번 또는 사용자 ID를 입력해주세요.")
+    st.stop()
+
+# ---- 기본 사이트 데이터 ----
 sites_original = {
     "안전시공팀": {
         "description": "안전시공팀",
@@ -40,17 +72,13 @@ sites_original = {
 SAVE_DIR = "sites_data"
 os.makedirs(SAVE_DIR, exist_ok=True)
 
+# ---- 데이터 로딩 및 저장 ----
 def save_sites(user_id):
-    if user_id == "default_user":
-        return
     file_path = os.path.join(SAVE_DIR, f"{user_id}_sites.json")
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(st.session_state[f"sites_{user_id}"], f, ensure_ascii=False, indent=2)
 
 def load_sites(user_id):
-    if user_id == "default_user":
-        return copy.deepcopy(sites_original)
-
     file_path = os.path.join(SAVE_DIR, f"{user_id}_sites.json")
     if os.path.exists(file_path):
         with open(file_path, "r", encoding="utf-8") as f:
@@ -65,15 +93,15 @@ def load_sites(user_id):
 
 LINKS_PER_PAGE = 8
 
-user_id = st.text_input("사용자 ID를 입력하세요", value="default_user")
-
-if user_id == "default_user" or f"sites_{user_id}" not in st.session_state:
+# ---- 세션 상태 초기화 ----
+if f"sites_{user_id}" not in st.session_state:
     st.session_state[f"sites_{user_id}"] = load_sites(user_id)
     st.session_state[f"pages_{user_id}"] = {tab: 0 for tab in st.session_state[f"sites_{user_id}"]}
 
 current_sites = st.session_state[f"sites_{user_id}"]
 current_pages = st.session_state[f"pages_{user_id}"]
 
+# ---- 링크 관리 함수 ----
 def delete_link(tab_name, index):
     del current_sites[tab_name]["links"][index]
     save_sites(user_id)
@@ -92,26 +120,20 @@ def add_tab(tab_name):
         current_pages[tab_name] = 0
         save_sites(user_id)
 
+# ---- 링크 표시 ----
 def display_links(tab_name):
     links = current_sites[tab_name]["links"]
     page = current_pages[tab_name]
 
     show_only_fav = st.checkbox("즐겨찾기만 보기", key=f"fav_filter_{user_id}_{tab_name}")
-    if show_only_fav:
-        filtered_links = [link for link in links if link.get("favorite", False)]
-    else:
-        filtered_links = links
+    filtered_links = [link for link in links if link.get("favorite", False)] if show_only_fav else links
 
     total_pages = (len(filtered_links) + LINKS_PER_PAGE - 1) // LINKS_PER_PAGE
-    start = page * LINKS_PER_PAGE
-    end = start + LINKS_PER_PAGE
+    start, end = page * LINKS_PER_PAGE, page * LINKS_PER_PAGE + LINKS_PER_PAGE
     paged_links = filtered_links[start:end]
 
     for i, link in enumerate(paged_links):
-        if show_only_fav:
-            idx = links.index(link)
-        else:
-            idx = start + i
+        idx = links.index(link) if show_only_fav else start + i
 
         col0, col1, col2 = st.columns([1, 8, 1])
         fav_icon = "★" if link.get("favorite", False) else "☆"
@@ -119,22 +141,26 @@ def display_links(tab_name):
             toggle_favorite(tab_name, idx)
             st.rerun()
 
-        # 버튼 대신 마크다운 링크로 변경 (새 탭에서 열림)
-        col1.markdown(f'<a href="{link["url"]}" target="_blank" style="text-decoration:none; color:inherit;">{link["description"]}</a>', unsafe_allow_html=True)
+        col1.markdown(
+            f'''<div style="display: flex; align-items: center; height: 80%;">
+            <a href="{link['url']}" target="_blank" style="text-decoration: none; color: inherit;">
+            {link['description']}</a></div>''', unsafe_allow_html=True)
 
         if col2.button("X", key=f"del_{user_id}_{tab_name}_{idx}"):
             delete_link(tab_name, idx)
             st.rerun()
 
-    col1, col2, col3 = st.columns([1, 1, 1])
-    if page > 0:
-        if col1.button("← 이전", key=f"prev_{user_id}_{tab_name}"):
+    # 페이지 네비게이션 버튼 (오른쪽 정렬, 줄 바꿈 안되도록 조정)
+    nav_col1, nav_col2 = st.columns([10, 2])
+    with nav_col1:
+        if page > 0 and st.button("← 이전", key=f"prev_{user_id}_{tab_name}"):
             current_pages[tab_name] -= 1
             st.rerun()
-    if end < len(filtered_links):
-        if col3.button("다음 →", key=f"next_{user_id}_{tab_name}"):
-            current_pages[tab_name] += 1
-            st.rerun()
+    with nav_col2:
+        if end < len(filtered_links):
+            if st.button("다음 →", key=f"next_{user_id}_{tab_name}"):
+                current_pages[tab_name] += 1
+                st.rerun()
 
     with st.expander("➕ 링크 추가"):
         with st.form(f"form_{user_id}_{tab_name}"):
@@ -145,14 +171,25 @@ def display_links(tab_name):
                 add_link(tab_name, title, url)
                 st.rerun()
 
-# --- 사이드바: 검색 + 탭 추가 UI ---
+# ---- 사이드바 ----
 with st.sidebar:
     st.header("검색")
-    search_query = st.text_input("검색어를 입력하세요", key=f"search_{user_id}")
+    
+    search_col1, search_col2 = st.columns([5, 1])
+    
+    with search_col1:
+        search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{user_id}", label_visibility="collapsed")
 
-    st.markdown("---")
+    with search_col2:
+        if st.button("❌", key=f"clear_search_btn_{user_id}", help="검색어 지우기"):
+            search_query = ""
+            st.session_state[f"do_search_{user_id}"] = False
+            st.rerun()
 
-    st.header("탭 추가")
+    if st.button("🔍 검색", key=f"search_btn_{user_id}"):
+        st.session_state[f"do_search_{user_id}"] = True
+    
+    # 탭 추가
     new_tab_name = st.text_input("새 탭 이름", key=f"new_tab_{user_id}")
     if st.button("탭 추가", key=f"add_tab_btn_{user_id}"):
         if not new_tab_name.strip():
@@ -162,51 +199,48 @@ with st.sidebar:
         else:
             add_tab(new_tab_name.strip())
             st.success(f"'{new_tab_name.strip()}' 탭이 추가되었습니다.")
-            st.experimental_rerun()
+            st.rerun()
 
-st.markdown(
-    """
-    <h1 style='color: orange;'>E1 Link</h1>
-    """,
-    unsafe_allow_html=True,
-)
+    # 탭 삭제
+    delete_tab_name = st.selectbox("삭제할 탭 선택", options=list(current_sites.keys()), key=f"delete_tab_{user_id}")
+    if st.button("탭 삭제", key=f"delete_tab_btn_{user_id}"):
+        if delete_tab_name in current_sites:
+            del current_sites[delete_tab_name]
+            del current_pages[delete_tab_name]
+            save_sites(user_id)
+            st.success(f"'{delete_tab_name}' 탭이 삭제되었습니다.")
+            st.rerun()
 
+# ---- 제목 ----
+st.markdown("""<h1 style='color: #FF6F00;'>E1 Link</h1>""", unsafe_allow_html=True)
+
+# ---- 검색 기능 ----
 if search_query and search_query.strip():
     search_lower = search_query.lower()
-    results = []
-    for tab_name, tab_data in current_sites.items():
-        for link in tab_data["links"]:
-            if search_lower in link["description"].lower():
-                results.append((tab_name, link))
-
+    results = [(tab, link) for tab, data in current_sites.items() for link in data["links"] if search_lower in link["description"].lower()]
     st.subheader(f"검색 결과 ({len(results)}개) — '{search_query}'")
     if results:
         for tab_name, link in results:
-            # 검색 결과도 마크다운 링크로 새 탭에서 열리게
-            if st.button(f"[{tab_name}] {link['description']}", key=f"search_{user_id}_{tab_name}_{link['description']}"):
-                # 그냥 st.write 링크를 눌러 열기 어려우니 버튼 대신 마크다운 링크를 따로 출력
-                st.markdown(f'<a href="{link["url"]}" target="_blank">{link["description"]}</a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{link["url"]}" target="_blank">[{tab_name}] {link["description"]}</a>', unsafe_allow_html=True)
     else:
         st.write("검색 결과가 없습니다.")
 else:
     tab_titles = list(current_sites.keys())
     tabs = st.tabs(tab_titles)
-
     for i, tab in enumerate(tabs):
-        tab_name = tab_titles[i]
         with tab:
-            st.header(tab_name)
-            display_links(tab_name)
+            st.header(tab_titles[i])
+            display_links(tab_titles[i])
 
-st.markdown("---")
-portals = [
-    ("BI Portal", "https://bi.e1.co.kr/#/signin?isDefaultIdentityPoolLogin=true&redirect=%2Fsite%2FE1%2Fviews%2FBI-IX_S1_5__new%2FECOverallDashboard%3F%253Aiid%3D1"),
-    ("SHE Portal", "https://she.e1.co.kr/index"),
-    ("Ariba", "https://ariba.portal.url"),
-    ("E1 홈페이지", "https://www.e1.co.kr/ko/main")
-]
-
-cols = st.columns(len(portals))
-for col, (name, url) in zip(cols, portals):
-    col.markdown(f"[{name}]({url})")
+# ---- 포털 링크 하단 고정 ----
+st.markdown("""
+    <div class="bottom-links">
+        <div style="display: flex; flex-direction: row; justify-content: center; gap: 20px;">
+            <a href="https://bi.e1.co.kr/#/signin?isDefaultIdentityPoolLogin=true&redirect=%2Fsite%2FE1%2Fviews%2FBI-IX_S1_5__new%2FECOverallDashboard%3F%253Aiid%3D1" target="_blank">BI Portal</a>
+            <a href="https://she.e1.co.kr/index" target="_blank">SHE Portal</a>
+            <a href="https://ariba.portal.url" target="_blank">Ariba</a>
+            <a href="https://www.e1.co.kr/ko/main" target="_blank">E1 홈페이지</a>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
