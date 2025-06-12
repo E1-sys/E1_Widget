@@ -280,7 +280,7 @@ def display_links(tab_name):
     for i, link in enumerate(paged_links):
         idx = links.index(link) if show_only_fav else start + i
 
-        col0, col1, col2 = st.columns([1, 9, 2])
+        col0, col1, col2 = st.columns([1, 11, 2])
         fav_icon = "⭐" if link.get("favorite", False) else "☆"
         if col0.button(fav_icon, key=f"fav_{user_id}_{tab_name}_{idx}"):
             toggle_favorite(tab_name, idx)
