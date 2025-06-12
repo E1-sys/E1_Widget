@@ -4,6 +4,39 @@ import os
 import json
 import zipfile
 import io
+import streamlit.components.v1 as components
+
+# ---- 화면 너비 감지용 JS 삽입 ----
+components.html("""
+    <script>
+        const sendWidth = () => {
+            const width = window.innerWidth;
+            const streamlitDoc = window.parent.document;
+            const dataElem = streamlitDoc.querySelector('div[data-testid="stData"]');
+            if (dataElem) {
+                dataElem.setAttribute("data-width", width);
+            }
+        };
+        sendWidth();
+        window.addEventListener("resize", sendWidth);
+    </script>
+""", height=0)
+
+# ---- 감지된 화면 너비를 기반으로 모바일 여부 판단 ----
+def is_mobile():
+    try:
+        # st.session_state가 아닌 js로 DOM 조작한 것을 기반으로 추정
+        import streamlit.components.v1 as components
+        width = st._get_delta_from_queue("data-width")
+        return width and int(width) < 768
+    except Exception:
+        return False
+
+# ---- 예시 사용 ----
+if is_mobile():
+    st.markdown("📱 **모바일 모드**")
+    # 모바일 UI용 간단 예시
+    st.button("모바일 전용 버튼")
 
 # ---- 전역 스타일 설정 ----
 st.markdown("""
@@ -11,6 +44,39 @@ st.markdown("""
         * {
             font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
         }
+
+        /* 모바일 전용 스타일 */
+        @media (max-width: 768px) {
+            * {
+                font-family: 'Apple SD Gothic Neo', 'Roboto', 'Noto Sans KR', sans-serif !important;
+            }
+            .bottom-links {
+                width: 90%;
+                bottom: 10px;
+                right: 5%;
+                padding: 12px;
+                font-size: 14px;
+                flex-direction: column;
+                align-items: center;
+            }
+            .bottom-links a {
+                display: block;
+                margin: 5px 0;
+                font-size: 14px;
+            }
+            button, .stButton>button {
+                font-size: 16px !important;
+                padding: 10px 16px !important;
+                width: 100% !important;
+            }
+            input, select, textarea {
+                font-size: 16px !important;
+            }
+            .stTabs [data-baseweb="tab-list"] {
+                flex-direction: column;
+            }
+        }
+
         .bottom-links {
             position: fixed;
             bottom: 20px;
@@ -78,7 +144,6 @@ if is_admin:
 else:
     team = st.session_state.team
     viewing_user_id = user_id
-
 
 # ---- 기본 사이트 데이터 ----
 default_sites = {
@@ -190,7 +255,22 @@ def display_links(tab_name):
     links = current_sites[tab_name]["links"]
     page = current_pages[tab_name]
 
-    show_only_fav = st.checkbox("즐겨찾기만 보기", key=f"fav_filter_{user_id}_{tab_name}")
+    # ---- 탭 제목과 새 링크 추가 버튼을 나란히 표시 ----
+    col_title, col_add = st.columns([8, 3])
+    with col_title:
+        st.markdown(f"<h3 style='margin-bottom: 0;'>{tab_name}</h3>", unsafe_allow_html=True)
+    if tab_name not in default_sites[team]:
+        with col_add:
+            with st.popover("➕ 새 링크 추가"):
+                with st.form(f"form_{tab_name}"):
+                    title = st.text_input("제목", key=f"title_{tab_name}")
+                    url = st.text_input("URL", key=f"url_{tab_name}")
+                    submitted = st.form_submit_button("추가")
+                    if submitted and title and url:
+                        add_link(tab_name, title, url)
+                        st.rerun()
+
+    show_only_fav = st.checkbox("⭐ 즐겨찾기만 보기", key=f"fav_filter_{user_id}_{tab_name}")
     filtered_links = [link for link in links if link.get("favorite", False)] if show_only_fav else links
 
     total_pages = (len(filtered_links) + LINKS_PER_PAGE - 1) // LINKS_PER_PAGE
@@ -200,16 +280,29 @@ def display_links(tab_name):
     for i, link in enumerate(paged_links):
         idx = links.index(link) if show_only_fav else start + i
 
-        col0, col1, col2 = st.columns([1, 8, 1])
-        fav_icon = "★" if link.get("favorite", False) else "☆"
+        col0, col1, col2 = st.columns([1, 9, 2])
+        fav_icon = "⭐" if link.get("favorite", False) else "☆"
         if col0.button(fav_icon, key=f"fav_{user_id}_{tab_name}_{idx}"):
             toggle_favorite(tab_name, idx)
             st.rerun()
 
         col1.markdown(
-            f'''<div style="display: flex; align-items: center; height: 80%;">
-            <a href="{link['url']}" target="_blank" style="text-decoration: none; color: inherit;">
-            {link['description']}</a></div>''', unsafe_allow_html=True)
+            f"""
+            <div style="
+                border: 0.5px solid #ddd;
+                border-radius: 13px;
+                padding: 7px 10px;
+                margin-bottom: 10px;
+                background-color: #fafafa;
+                font-family: 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+                font-size: 15px;
+                transition: box-shadow 0.2s ease-in-out;
+            " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
+                <a href="{link['url']}" target="_blank" style="text-decoration: none; color: #333; font-weight: 500;">
+                    {link['description']}
+                </a>
+            </div>
+            """, unsafe_allow_html=True)
 
         if col2.button("X", key=f"del_{user_id}_{tab_name}_{idx}"):
             delete_link(tab_name, idx)
@@ -226,16 +319,6 @@ def display_links(tab_name):
             if st.button("다음 →", key=f"next_{user_id}_{tab_name}"):
                 current_pages[tab_name] += 1
                 st.rerun()
-
-    if tab_name not in default_sites[team]:
-        with st.expander("➕ 링크 추가"):
-            with st.form(f"form_{user_id}_{tab_name}"):
-                title = st.text_input("제목", key=f"title_{user_id}_{tab_name}")
-                url = st.text_input("URL", key=f"url_{user_id}_{tab_name}")
-                submit = st.form_submit_button("추가")
-                if submit and title and url:
-                    add_link(tab_name, title, url)
-                    st.rerun()
 
 # ---- 사이드바 ----
 with st.sidebar:
@@ -328,8 +411,8 @@ else:
     tabs = st.tabs(tab_titles)
     for i, tab in enumerate(tabs):
         with tab:
-            st.header(tab_titles[i])
             display_links(tab_titles[i])
+
 
 # ---- 포털 링크 하단 고정 ----
 st.markdown("""
@@ -342,4 +425,3 @@ st.markdown("""
         </div>
     </div>
 """, unsafe_allow_html=True)
-
