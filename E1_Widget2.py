@@ -67,6 +67,7 @@ st.markdown("""
         /* 헤더 스타일 */
         .main-header {
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            margin: 0px auto 0;
             color: white;
             padding: 2rem;
             border-radius: 15px;
@@ -955,12 +956,14 @@ elif st.session_state.current_page == "링크 바로가기":
     """, unsafe_allow_html=True)
     
     # 검색 기능
+    st.markdown("---")
     col1, col2 = st.columns([3, 1])
     with col1:
         search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...")
     with col2:
         show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기")
-    
+
+    st.markdown("---")
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
         tab_names = list(current_sites.keys())
