@@ -67,7 +67,7 @@ st.markdown("""
         /* 헤더 스타일 */
         .main-header {
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-            margin: -100px auto 0;
+            margin: -75px auto 0;
             color: white;
             padding: 2rem;
             border-radius: 15px;
