@@ -5,6 +5,15 @@ import json
 import zipfile
 import io
 import streamlit.components.v1 as components
+from datetime import datetime, timedelta
+
+# ---- 페이지 설정 ----
+st.set_page_config(
+    page_title="E1 Link - AIH Portal Hub",
+    page_icon="🔗",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # ---- 화면 너비 감지용 JS 삽입 ----
 components.html("""
@@ -22,128 +31,364 @@ components.html("""
     </script>
 """, height=0)
 
-# ---- 감지된 화면 너비를 기반으로 모바일 여부 판단 ----
+# ---- 모바일 감지 함수 ----
 def is_mobile():
     try:
-        # st.session_state가 아닌 js로 DOM 조작한 것을 기반으로 추정
         import streamlit.components.v1 as components
         width = st._get_delta_from_queue("data-width")
         return width and int(width) < 768
     except Exception:
         return False
 
-# ---- 예시 사용 ----
-if is_mobile():
-    st.markdown("📱 **모바일 모드**")
-    # 모바일 UI용 간단 예시
-    st.button("모바일 전용 버튼")
-
-# ---- 전역 스타일 설정 ----
+# ---- 전역 CSS 스타일 ----
 st.markdown("""
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
+        
         * {
-            font-family: 'Segoe UI', 'Malgun Gothic', sans-serif;
+            font-family: 'Noto Sans KR', 'Segoe UI', sans-serif;
         }
-
-        /* 모바일 전용 스타일 */
-        @media (max-width: 768px) {
-            * {
-                font-family: 'Apple SD Gothic Neo', 'Roboto', 'Noto Sans KR', sans-serif !important;
-            }
-            .bottom-links {
-                width: 90%;
-                bottom: 10px;
-                right: 5%;
-                padding: 12px;
-                font-size: 14px;
-                flex-direction: column;
-                align-items: center;
-            }
-            .bottom-links a {
-                display: block;
-                margin: 5px 0;
-                font-size: 14px;
-            }
-            button, .stButton>button {
-                font-size: 16px !important;
-                padding: 10px 16px !important;
-                width: 100% !important;
-            }
-            input, select, textarea {
-                font-size: 16px !important;
-            }
-            .stTabs [data-baseweb="tab-list"] {
-                flex-direction: column;
-            }
+        
+        /* 메인 컨테이너 스타일링 */
+        .main .block-container {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
         }
-
+        
+        /* 사이드바 스타일링 */
+        .css-1d391kg {
+            background: linear-gradient(180deg, #d97706 0%, #ea580c 100%);
+        }
+        
+        .css-1d391kg .css-17eq0hr {
+            color: white;
+        }
+        
+        /* 헤더 스타일 */
+        .main-header {
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.3);
+        }
+        
+        .main-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: white;
+        }
+        
+        .main-header p {
+            margin: 0.5rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        /* 대시보드 카드 스타일 */
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid #d97706;
+            margin-bottom: 1rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #d97706;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #ea580c;
+        }
+        
+        .card-description {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+        
+        /* 링크 카드 스타일 */
+        .link-card {
+            height: 40px;  /* 원하는 높이로 조정 */
+            display: flex;
+            align-items: center;
+            justify-content: left;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #f9f9f9;
+        }
+        
+        .link-content {
+            text-align: center;
+            width: 100%;
+        }
+        
+        .link-content a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .link-content a:hover {
+            color: #007bff;
+        }
+        
+        .link-card:hover {
+            border-color: #ea580c;
+            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15);
+            transform: translateY(-1px);
+        }
+        
+        .link-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 3px;
+            background: #ea580c;
+            transform: scaleY(0);
+            transition: transform 0.2s ease;
+        }
+        
+        .link-card:hover::before {
+            transform: scaleY(1);
+        }
+        
+        .link-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .link-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .favorite-btn {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            color: #fbbf24;
+        }
+        
+        .favorite-btn:hover {
+            transform: scale(1.2);
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            cursor: pointer;
+            color: #ef4444;
+            transition: transform 0.2s ease;
+        }
+        
+        .delete-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .link-card a {
+            text-decoration: none;
+            color: #374151;
+            font-weight: 500;
+            margin-left: 0.5rem;
+        }
+        
+        .link-card a:hover {
+            color: #d97706;
+        }
+        
+        /* 탭 스타일 개선 */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 0.5rem;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            border-radius: 8px 8px 0 0;
+            padding: 0.75rem 1.5rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #64748b;
+            font-weight: 500;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background: #d97706;
+            color: white;
+            border-color: #d97706;
+        }
+        
+        /* 버튼 스타일 개선 */
+        .stButton > button {
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .stButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* 포털 링크 하단 고정 */
         .bottom-links {
             position: fixed;
             bottom: 20px;
             right: 20px;
             background: white;
-            padding: 10px 20px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            border-top: 3px solid #d97706;
+            z-index: 1000;
         }
+        
         .bottom-links a {
-            margin: 0 10px;
+            margin: 0 0.75rem;
+            text-decoration: none;
+            color: #d97706;
+            font-weight: 500;
             white-space: nowrap;
+            transition: color 0.2s ease;
+        }
+        
+        .bottom-links a:hover {
+            color: #ea580c;
+        }
+        
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            .main-header h1 {
+                font-size: 2rem;
+            }
+            
+            .bottom-links {
+                width: 90%;
+                bottom: 10px;
+                right: 5%;
+                padding: 0.75rem;
+                font-size: 0.9rem;
+            }
+            
+            .bottom-links a {
+                display: block;
+                margin: 0.25rem 0;
+                text-align: center;
+            }
+            
+            .dashboard-card {
+                padding: 1rem;
+            }
+            
+            .card-value {
+                font-size: 1.5rem;
+            }
+            
+            .stTabs [data-baseweb="tab-list"] {
+                flex-direction: column;
+            }
+        }
+        
+        /* 검색 결과 하이라이트 */
+        .search-highlight {
+            background: #fef3c7;
+            padding: 0.1rem 0.3rem;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        /* 알림 스타일 */
+        .success-message {
+            background: #dcfce7;
+            color: #166534;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #22c55e;
+            margin: 1rem 0;
+        }
+        
+        .warning-message {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #f59e0b;
+            margin: 1rem 0;
+        }
+        
+        /* 설정 카드 스타일 */
+        .settings-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .settings-card h4 {
+            color: #d97706;
+            margin-bottom: 1rem;
+        }
+        
+        /* 상태 표시 배지 */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-online {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .status-offline {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-maintenance {
+            background: #fef3c7;
+            color: #92400e;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# ---- 관리자 ID 목록 정의 ----
+# ---- 관리자 ID 및 설정 ----
 ADMIN_IDS = ["admin"]
-
 SAVE_DIR = "sites_data"
+DEFAULT_TABS_DIR = "default_tabs"
 os.makedirs(SAVE_DIR, exist_ok=True)
+os.makedirs(DEFAULT_TABS_DIR, exist_ok=True)
 
 # ---- 팀 목록 ----
 teams = ["기술운영팀", "기술지원팀", "SHE지원팀", "안전시공팀", "여수기지", "대산기지", "인천기지"]
-
-# ---- 세션 초기화 또는 홈으로 돌아가기 버튼 ----
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if st.sidebar.button("🏠 홈으로 돌아가기"):
-    st.session_state.authenticated = False
-    st.session_state.pop("user_id", None)
-    st.session_state.pop("team", None)
-    st.rerun()
-
-# ---- 로그인 화면 ----
-if not st.session_state.authenticated:
-    with st.form("login_form", clear_on_submit=False):
-        team = st.selectbox("팀을 선택하세요", teams, key="team_selectbox")
-        user_id = st.text_input("사번 또는 사용자 ID를 입력하세요", value="", placeholder="예: honggildong", key="user_input")
-        submitted = st.form_submit_button("접속")
-        if submitted:
-            if not user_id.strip():
-                st.warning("사번 또는 사용자 ID를 입력해주세요.")
-                st.stop()
-            st.session_state.authenticated = True
-            st.session_state.team = team
-            st.session_state.user_id = user_id.strip()
-            st.rerun()
-    st.stop()
-
-# ---- 로그인 이후 변수 할당 ----
-user_id = st.session_state.user_id
-is_admin = user_id in ADMIN_IDS
-
-# admin이거나 일반 사용자일 때 team 선택 다르게 처리
-if is_admin:
-    team = st.selectbox("조회할 팀 선택", teams, index=teams.index(st.session_state.team), key="admin_team_selectbox")
-    all_files = os.listdir(SAVE_DIR)
-    all_user_ids = sorted(set(
-        f.split("_")[0] for f in all_files if f.endswith(f"_{team}_sites.json")
-    ))
-    selected_user = st.selectbox("조회할 사용자 선택", all_user_ids, key="admin_user_select")
-    viewing_user_id = selected_user
-else:
-    team = st.session_state.team
-    viewing_user_id = user_id
 
 # ---- 기본 사이트 데이터 ----
 default_sites = {
@@ -199,7 +444,13 @@ default_sites = {
     }
 }
 
-# ---- 데이터 로딩 및 저장 ----
+# ---- 세션 초기화 ----
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "홈"
+
+# ---- 데이터 관리 함수들 ----
 def save_sites(uid, team):
     file_path = os.path.join(SAVE_DIR, f"{uid}_{team}_sites.json")
     with open(file_path, "w", encoding="utf-8") as f:
@@ -216,212 +467,735 @@ def load_sites(uid, team):
                         link["favorite"] = False
             return data
     else:
+        # 팀별 기본 탭 로드
+        default_tab_file = os.path.join(DEFAULT_TABS_DIR, f"{team}_default.json")
+        if os.path.exists(default_tab_file):
+            with open(default_tab_file, "r", encoding="utf-8") as f:
+                return json.load(f)
         return copy.deepcopy(default_sites[team])
 
-LINKS_PER_PAGE = 8
+def save_default_tabs(team, data):
+    file_path = os.path.join(DEFAULT_TABS_DIR, f"{team}_default.json")
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ---- 세션 상태 초기화 ----
-site_key = f"sites_{viewing_user_id}_{team}"
-page_key = f"pages_{viewing_user_id}_{team}"
+def load_default_tabs(team):
+    file_path = os.path.join(DEFAULT_TABS_DIR, f"{team}_default.json")
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return copy.deepcopy(default_sites[team])
 
-if site_key not in st.session_state:
-    st.session_state[site_key] = load_sites(viewing_user_id, team)
-    st.session_state[page_key] = {tab: 0 for tab in st.session_state[site_key]}
-
-current_sites = st.session_state[site_key]
-current_pages = st.session_state[page_key]
-
-# ---- 링크 관리 함수 ----
-def delete_link(tab_name, index):
-    del current_sites[tab_name]["links"][index]
+# ---- 링크 관리 함수들 ----
+def add_link(tab_name, title, url):
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    
+    st.session_state[site_key][tab_name]["links"].append({
+        "description": title, 
+        "url": url, 
+        "favorite": False
+    })
     save_sites(viewing_user_id, team)
 
-def add_link(tab_name, title, url):
-    current_sites[tab_name]["links"].append({"description": title, "url": url, "favorite": False})
+def delete_link(tab_name, index):
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    
+    del st.session_state[site_key][tab_name]["links"][index]
     save_sites(viewing_user_id, team)
 
 def toggle_favorite(tab_name, index):
-    current_sites[tab_name]["links"][index]["favorite"] = not current_sites[tab_name]["links"][index].get("favorite", False)
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    
+    current_fav = st.session_state[site_key][tab_name]["links"][index].get("favorite", False)
+    st.session_state[site_key][tab_name]["links"][index]["favorite"] = not current_fav
     save_sites(viewing_user_id, team)
 
 def add_tab(tab_name):
-    if tab_name and tab_name not in current_sites:
-        current_sites[tab_name] = {"description": tab_name, "links": []}
-        current_pages[tab_name] = 0
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    page_key = f"pages_{viewing_user_id}_{team}"
+    
+    if tab_name and tab_name not in st.session_state[site_key]:
+        st.session_state[site_key][tab_name] = {"description": tab_name, "links": []}
+        if page_key not in st.session_state:
+            st.session_state[page_key] = {}
+        st.session_state[page_key][tab_name] = 0
+        save_sites(viewing_user_id, team)
+        return True
+    return False
+
+def delete_tab(tab_name):
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    page_key = f"pages_{viewing_user_id}_{team}"
+    
+    if tab_name in st.session_state[site_key]:
+        del st.session_state[site_key][tab_name]
+        if page_key in st.session_state and tab_name in st.session_state[page_key]:
+            del st.session_state[page_key][tab_name]
         save_sites(viewing_user_id, team)
 
-# ---- 링크 표시 ----
-def display_links(tab_name):
-    links = current_sites[tab_name]["links"]
-    page = current_pages[tab_name]
+def rename_tab(old_name, new_name):
+    viewing_user_id = st.session_state.get("viewing_user_id", st.session_state.user_id)
+    team = st.session_state.get("current_team", st.session_state.team)
+    site_key = f"sites_{viewing_user_id}_{team}"
+    
+    if new_name and new_name not in st.session_state[site_key]:
+        st.session_state[site_key][new_name] = st.session_state[site_key][old_name]
+        st.session_state[site_key][new_name]["description"] = new_name
+        del st.session_state[site_key][old_name]
+        save_sites(viewing_user_id, team)
+        return True
+    return False
 
-    # ---- 탭 제목과 새 링크 추가 버튼을 나란히 표시 ----
-    col_title, col_add = st.columns([8, 3])
-    with col_title:
-        st.markdown(f"<h3 style='margin-bottom: 0;'>{tab_name}</h3>", unsafe_allow_html=True)
-    if tab_name not in default_sites[team]:
-        with col_add:
-            with st.popover("➕ 새 링크 추가"):
-                with st.form(f"form_{tab_name}"):
-                    title = st.text_input("제목", key=f"title_{tab_name}")
-                    url = st.text_input("URL", key=f"url_{tab_name}")
-                    submitted = st.form_submit_button("추가")
-                    if submitted and title and url:
-                        add_link(tab_name, title, url)
+# ---- 로그인 화면 ----
+if not st.session_state.authenticated:
+    st.markdown("""
+        <div class="main-header">
+            <h1>🔗 E1 Link</h1>
+            <p>AIH Portal Hub - 설비 정보 통합 관리 시스템</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        with st.form("login_form", clear_on_submit=False):
+            st.markdown("### 🚪 시스템 접속")
+            team = st.selectbox("🏢 팀을 선택하세요", teams, key="team_selectbox")
+            user_id = st.text_input("👤 사번 또는 사용자 ID", value="", placeholder="예: honggildong", key="user_input")
+            submitted = st.form_submit_button("🔑 접속하기", use_container_width=True)
+            
+            if submitted:
+                if not user_id.strip():
+                    st.error("사번 또는 사용자 ID를 입력해주세요.")
+                    st.stop()
+                st.session_state.authenticated = True
+                st.session_state.team = team
+                st.session_state.user_id = user_id.strip()
+                st.rerun()
+    st.stop()
+
+# ---- 메인 화면 ----
+user_id = st.session_state.user_id
+is_admin = user_id in ADMIN_IDS
+
+# 관리자 또는 일반 사용자 설정
+if is_admin:
+    with st.sidebar:
+        st.markdown("### 👨‍💼 관리자 설정")
+        current_team = st.selectbox("조회할 팀 선택", teams, 
+                                  index=teams.index(st.session_state.team), 
+                                  key="admin_team_selectbox")
+        
+        all_files = os.listdir(SAVE_DIR)
+        all_user_ids = sorted(set(
+            f.split("_")[0] for f in all_files if f.endswith(f"_{current_team}_sites.json")
+        ))
+        
+        if all_user_ids:
+            selected_user = st.selectbox("조회할 사용자 선택", all_user_ids, key="admin_user_select")
+            viewing_user_id = selected_user
+        else:
+            viewing_user_id = user_id
+            st.info("해당 팀에 등록된 사용자가 없습니다.")
+    
+    st.session_state.current_team = current_team
+    st.session_state.viewing_user_id = viewing_user_id
+else:
+    current_team = st.session_state.team
+    viewing_user_id = user_id
+    st.session_state.current_team = current_team
+    st.session_state.viewing_user_id = viewing_user_id
+
+# ---- 사이드바 네비게이션 ----
+with st.sidebar:
+    st.markdown(f"""
+        <div style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%); 
+                    color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+            <h3 style="margin: 0; color: white;">🔗 E1 Link</h3>
+            <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">
+                {current_team} | {viewing_user_id}
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 네비게이션 메뉴
+    nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
+    if is_admin:
+        nav_options.append("⚙️ 팀별 기본 탭 관리")
+    
+    selected_nav = st.radio("메뉴", nav_options, key="navigation")
+    st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
+    
+    # 탭 관리 기능을 사이드바에 추가
+    if is_admin or viewing_user_id == user_id:
+        st.markdown("---")
+        st.markdown("### 📝 탭 관리")
+        
+        # 탭 추가
+        with st.expander("➕ 탭 추가", expanded=False):
+            new_tab_name = st.text_input("새 탭 이름", key="sidebar_new_tab_input")
+            if st.button("탭 추가", key="sidebar_add_tab"):
+                if new_tab_name:
+                    site_key = f"sites_{viewing_user_id}_{current_team}"
+                    if site_key not in st.session_state:
+                        st.session_state[site_key] = load_sites(viewing_user_id, current_team)
+                    
+                    if add_tab(new_tab_name):
+                        st.success(f"'{new_tab_name}' 탭이 추가되었습니다.")
                         st.rerun()
+                    else:
+                        st.error("탭 이름을 입력하거나 이미 존재하는 탭입니다.")
+        
+        # 탭 이름 변경
+        site_key = f"sites_{viewing_user_id}_{current_team}"
+        if site_key not in st.session_state:
+            st.session_state[site_key] = load_sites(viewing_user_id, current_team)
+        
+        current_sites = st.session_state[site_key]
+        
+        if current_sites:
+            with st.expander("🏷️ 탭 이름 변경", expanded=False):
+                tab_to_rename = st.selectbox("변경할 탭 선택", list(current_sites.keys()), key="sidebar_rename_tab_select")
+                new_name = st.text_input("새 탭 이름", value=tab_to_rename, key="sidebar_rename_input")
+                if st.button("이름 변경", key="sidebar_rename_btn"):
+                    if rename_tab(tab_to_rename, new_name):
+                        st.success(f"탭 이름이 '{new_name}'으로 변경되었습니다.")
+                        st.rerun()
+                    else:
+                        st.error("이미 존재하는 탭 이름이거나 비어있습니다.")
+            
+            # 탭 삭제
+            with st.expander("🗑️ 탭 삭제", expanded=False):
+                tab_to_delete = st.selectbox("삭제할 탭 선택", list(current_sites.keys()), key="sidebar_delete_tab_select")
+                if st.button("탭 삭제", key="sidebar_delete_tab"):
+                    delete_tab(tab_to_delete)
+                    st.success(f"'{tab_to_delete}' 탭이 삭제되었습니다.")
+                    st.rerun()
+    
+    if st.button("🚪 로그아웃", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.pop("user_id", None)
+        st.session_state.pop("team", None)
+        st.rerun()
 
-    show_only_fav = st.checkbox("⭐ 즐겨찾기만 보기", key=f"fav_filter_{user_id}_{tab_name}")
-    filtered_links = [link for link in links if link.get("favorite", False)] if show_only_fav else links
+# ---- 데이터 로딩 ----
+site_key = f"sites_{viewing_user_id}_{current_team}"
+page_key = f"pages_{viewing_user_id}_{current_team}"
 
-    total_pages = (len(filtered_links) + LINKS_PER_PAGE - 1) // LINKS_PER_PAGE
-    start, end = page * LINKS_PER_PAGE, page * LINKS_PER_PAGE + LINKS_PER_PAGE
-    paged_links = filtered_links[start:end]
+if site_key not in st.session_state:
+    st.session_state[site_key] = load_sites(viewing_user_id, current_team)
+    st.session_state[page_key] = {tab: 0 for tab in st.session_state[site_key]}
 
-    for i, link in enumerate(paged_links):
-        idx = links.index(link) if show_only_fav else start + i
+current_sites = st.session_state[site_key]
+current_pages = st.session_state.get(page_key, [])
 
-        col0, col1, col2 = st.columns([1, 11, 2])
-        fav_icon = "⭐" if link.get("favorite", False) else "☆"
-        if col0.button(fav_icon, key=f"fav_{user_id}_{tab_name}_{idx}"):
-            toggle_favorite(tab_name, idx)
-            st.rerun()
-
-        col1.markdown(
-            f"""
-            <div style="
-                border: 0.5px solid #ddd;
-                border-radius: 13px;
-                padding: 7px 10px;
-                margin-bottom: 10px;
-                background-color: #fafafa;
-                font-family: 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
-                font-size: 15px;
-                transition: box-shadow 0.2s ease-in-out;
-            " onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
-                <a href="{link['url']}" target="_blank" style="text-decoration: none; color: #333; font-weight: 500;">
-                    {link['description']}
-                </a>
+# ---- 페이지 라우팅 ----
+if st.session_state.current_page == "홈":
+    # ---- 대시보드 페이지 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>🏠 대시보드</h1>
+            <p>E1 Link AIH Portal Hub 현황</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 통계 카드들
+    col1, col2, col3, col4 = st.columns(4)
+    
+    total_links = sum(len(tab_data["links"]) for tab_data in current_sites.values())
+    total_favorites = sum(
+        sum(1 for link in tab_data["links"] if link.get("favorite", False))
+        for tab_data in current_sites.values()
+    )
+    total_tabs = len(current_sites)
+    
+    with col1:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="card-title">총 링크 수</div>
+                <div class="card-value">{total_links}</div>
+                <div class="card-description">등록된 전체 링크</div>
             </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="card-title">즐겨찾기</div>
+                <div class="card-value">{total_favorites}</div>
+                <div class="card-description">즐겨찾기 설정된 링크</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="card-title">총 탭 수</div>
+                <div class="card-value">{total_tabs}</div>
+                <div class="card-description">생성된 탭 개수</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        avg_links = round(total_links / total_tabs, 1) if total_tabs > 0 else 0
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div class="card-title">뭐 넣지..?(평균 링크/탭)</div>
+                <div class="card-value">{avg_links}</div>
+                <div class="card-description">탭당 평균 링크 수</div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # 최근 활동 및 즐겨찾기
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### ⭐ 즐겨찾기 링크")
+        favorite_links = []
+        for tab_name, tab_data in current_sites.items():
+            for link in tab_data["links"]:
+                if link.get("favorite", False):
+                    favorite_links.append((tab_name, link))
+        
+        if favorite_links:
+            for tab_name, link in favorite_links[:5]:  # 최대 5개만 표시
+                st.markdown(f"""
+                    <div class="link-card">
+                        <div class="link-content">
+                            <span>⭐</span>
+                            <a href="{link['url']}" target="_blank">{link['description']}</a>
+                        </div>
+                        <small style="color: #6b7280;">({tab_name})</small>
+                    </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("즐겨찾기로 설정된 링크가 없습니다.")
+    
+    with col2:
+        st.markdown("### 📊 탭별 링크 현황")
+        for tab_name, tab_data in current_sites.items():
+            link_count = len(tab_data["links"])
+            favorite_count = sum(1 for link in tab_data["links"] if link.get("favorite", False))
+            
+            st.markdown(f"""
+                <div class="dashboard-card" style="margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div class="card-title" style="margin-bottom: 0.2rem; font-size: 1rem;">{tab_name}</div>
+                            <div style="font-size: 0.8rem; color: #6b7280;">
+                                링크 {link_count}개 | 즐겨찾기 {favorite_count}개
+                            </div>
+                        </div>
+                        <div class="card-value" style="font-size: 1.5rem;">{link_count}</div>
+                    </div>
+                </div>
             """, unsafe_allow_html=True)
 
-        if col2.button("X", key=f"del_{user_id}_{tab_name}_{idx}"):
-            delete_link(tab_name, idx)
-            st.rerun()
-
-    # 페이지 네비게이션 버튼 (오른쪽 정렬, 줄 바꿈 안되도록 조정)
-    nav_col1, nav_col2 = st.columns([10, 2])
-    with nav_col1:
-        if page > 0 and st.button("← 이전", key=f"prev_{user_id}_{tab_name}"):
-            current_pages[tab_name] -= 1
-            st.rerun()
-    with nav_col2:
-        if end < len(filtered_links):
-            if st.button("다음 →", key=f"next_{user_id}_{tab_name}"):
-                current_pages[tab_name] += 1
-                st.rerun()
-
-# ---- 사이드바 ----
-with st.sidebar:
-    st.header("검색")
-    search_query = st.text_input("검색어를 입력하세요", key=f"search_input_{viewing_user_id}")
-    if st.button("🔍 검색", key=f"search_btn_{viewing_user_id}"):
-        st.session_state[f"do_search_{viewing_user_id}"] = True
-
-    st.markdown("---")
-    st.header("탭 관리")
-    new_tab_name = st.text_input("새 탭 이름", key=f"new_tab_{viewing_user_id}")
-    if st.button("탭 추가", key=f"add_tab_btn_{viewing_user_id}"):
-        if not new_tab_name.strip():
-            st.warning("탭 이름을 입력하세요.")
-        elif new_tab_name in current_sites:
-            st.warning("이미 존재하는 탭 이름입니다.")
-        else:
-            add_tab(new_tab_name.strip())
-            st.success(f"'{new_tab_name.strip()}' 탭이 추가되었습니다.")
-            st.rerun()
-
-    delete_tab_name = st.selectbox("삭제할 탭 선택", options=[tab for tab in current_sites.keys() if tab not in default_sites[team]], key=f"delete_tab_{viewing_user_id}")
-    if st.button("탭 삭제", key=f"delete_tab_btn_{viewing_user_id}"):
-        if delete_tab_name in current_sites:
-            del current_sites[delete_tab_name]
-            del current_pages[delete_tab_name]
-            save_sites(viewing_user_id, team)
-            st.success(f"'{delete_tab_name}' 탭이 삭제되었습니다.")
-            st.rerun()
-
-    if is_admin:
-        st.markdown("---")
-        st.subheader("사용자 데이터 삭제")
-        del_user = st.selectbox("삭제할 사용자", all_user_ids, key="admin_del_user")
-        if st.button("❌ 사용자 데이터 삭제"):
-            deleted_any = False
-            for t in teams:
-                file_path = os.path.join(SAVE_DIR, f"{del_user}_{t}_sites.json")
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    deleted_any = True
-            if deleted_any:
-                st.success(f"{del_user}의 모든 팀 데이터가 삭제되었습니다.")
-                st.rerun()
-            else:
-                st.warning("해당 사용자의 데이터가 없습니다.")
-
-        st.markdown("---")
-        st.subheader("📦 전체 사용자 데이터 백업/복원")
+elif st.session_state.current_page == "링크 바로가기":
+    # ---- 링크 관리 페이지 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>🔗 E1 링크</h1>
+            <p>팀별 포털 및 시스템 링크 관리</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 검색 기능
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...")
+    with col2:
+        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기")
+    
+    # 탭이 있는 경우에만 탭 표시
+    if current_sites:
+        tab_names = list(current_sites.keys())
+        tabs = st.tabs(tab_names)
         
-        # 백업 다운로드
-        if st.button("💾 전체 사용자 데이터 백업"):
-            backup_buffer = io.BytesIO()
-            with zipfile.ZipFile(backup_buffer, 'w') as zipf:
-                for filename in os.listdir(SAVE_DIR):
-                    if filename.endswith("_sites.json"):
-                        filepath = os.path.join(SAVE_DIR, filename)
-                        zipf.write(filepath, arcname=filename)
-            st.download_button("📥 백업 파일 다운로드", data=backup_buffer.getvalue(),
-                               file_name="backup_sites.zip", mime="application/zip")
-        
-        # 복원 업로드
-        uploaded_zip = st.file_uploader("📤 백업 파일 업로드 (zip)", type=["zip"])
-        if uploaded_zip is not None:
-            with zipfile.ZipFile(uploaded_zip) as zipf:
-                for member in zipf.namelist():
-                    if member.endswith("_sites.json"):
-                        with zipf.open(member) as f:
-                            file_data = f.read()
-                            save_path = os.path.join(SAVE_DIR, os.path.basename(member))
-                            with open(save_path, "wb") as out_file:
-                                out_file.write(file_data)
-                st.success("📁 사용자 데이터가 성공적으로 복원되었습니다. 페이지를 새로고침 해주세요.")
-
-# ---- 제목 ----
-st.markdown("""<h1 style='color: #FF6F00;'>E1 Link</h1>""", unsafe_allow_html=True)
-
-# ---- 검색 기능 ----
-if search_query and search_query.strip():
-    search_lower = search_query.lower()
-    results = [(tab, link) for tab, data in current_sites.items() for link in data["links"] if search_lower in link["description"].lower()]
-    st.subheader(f"검색 결과 ({len(results)}개) — '{search_query}'")
-    if results:
-        for tab_name, link in results:
-            st.markdown(f'<a href="{link["url"]}" target="_blank">[{tab_name}] {link["description"]}</a>', unsafe_allow_html=True)
+        for i, (tab_name, tab) in enumerate(zip(tab_names, tabs)):
+            with tab:
+                tab_data = current_sites[tab_name]
+                links = tab_data["links"]
+                
+                # 검색 및 필터링
+                filtered_links = []
+                for idx, link in enumerate(links):
+                    if search_query:
+                        if search_query.lower() not in link["description"].lower() and search_query.lower() not in link["url"].lower():
+                            continue
+                    if show_favorites_only and not link.get("favorite", False):
+                        continue
+                    filtered_links.append((idx, link))
+                
+                # 링크 추가 폼 (관리자 또는 본인만)
+                if is_admin or viewing_user_id == user_id:
+                    with st.expander("➕ 새 링크 추가", expanded=False):
+                        with st.form(f"add_link_form_{tab_name}"):
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                new_title = st.text_input("링크 제목", key=f"title_{tab_name}")
+                            with col2:
+                                new_url = st.text_input("URL (http:// 또는 https:// 포함)", key=f"url_{tab_name}")
+                            
+                            submitted = st.form_submit_button("링크 추가")
+                            if submitted:
+                                if new_title and new_url:
+                                    if not new_url.startswith(('http://', 'https://')):
+                                        st.error("URL은 http:// 또는 https://로 시작해야 합니다.")
+                                    else:
+                                        add_link(tab_name, new_title, new_url)
+                                        st.success(f"'{new_title}' 링크가 추가되었습니다.")
+                                        st.rerun()
+                                else:
+                                    st.error("제목과 URL을 모두 입력해주세요.")
+                
+                # 링크 목록 표시
+                if filtered_links:
+                    for idx, link in filtered_links:
+                        col2, col1, col3 = st.columns([1, 18, 1])
+                        with col1:
+                            st.markdown(f"""
+                                <div class="link-card">
+                                    <div class="link-content">
+                                        <a href="{link['url']}" target="_blank">{link['description']}</a>
+                                    </div>
+                                </div>
+                            """, unsafe_allow_html=True)
+                        
+                        if is_admin or viewing_user_id == user_id:
+                            with col2:
+                                if st.button("⭐" if not link.get('favorite', False) else "☆", 
+                                           key=f"fav_{tab_name}_{idx}",
+                                           help="즐겨찾기 토글"):
+                                    toggle_favorite(tab_name, idx)
+                                    st.rerun()
+                            
+                            with col3:
+                                if st.button("🗑️", key=f"del_{tab_name}_{idx}", help="링크 삭제"):
+                                    delete_link(tab_name, idx)
+                                    st.success("링크가 삭제되었습니다.")
+                                    st.rerun()
+    
+                else:
+                    if search_query or show_favorites_only:
+                        st.info("검색 조건에 맞는 링크가 없습니다.")
+                    else:
+                        st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
     else:
-        st.write("검색 결과가 없습니다.")
-else:
-    tab_titles = list(current_sites.keys())
-    tabs = st.tabs(tab_titles)
-    for i, tab in enumerate(tabs):
-        with tab:
-            display_links(tab_titles[i])
+        st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
 
+elif st.session_state.current_page == "사용자 매뉴얼":
+    # ---- 사용자 매뉴얼 페이지 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>📖 사용자 매뉴얼</h1>
+            <p>E1 Link 시스템 사용 방법 안내</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    manual_tabs = st.tabs(["🚀 시작하기", "🔗 링크 관리", "⚙️ 고급 기능", "❓ FAQ"])
+    
+    with manual_tabs[0]:
+        st.markdown("""
+        ## 🚀 시작하기
+        
+        ### 로그인
+        1. **팀 선택**: 소속 팀을 드롭다운에서 선택합니다
+        2. **사번 입력**: 사번 또는 사용자 ID를 입력합니다
+        3. **접속하기**: 버튼을 클릭하여 시스템에 접속합니다
+        
+        ### 기본 화면 구성
+        - **사이드바**: 메뉴 탐색 및 탭 관리
+        - **메인 화면**: 선택한 메뉴의 내용 표시
+        - **하단 고정 링크**: 주요 포털 바로가기
+        
+        ### 주요 메뉴
+        - **홈**: 대시보드 및 통계 정보
+        - **링크 바로가기**: 링크 목록 및 관리
+        - **사용자 매뉴얼**: 현재 보고 있는 페이지
+        - **설비 상태진단**: 설비 관련 정보 (개발 예정)
+        """)
+    
+    with manual_tabs[1]:
+        st.markdown("""
+        ## 🔗 링크 관리
+        
+        ### 링크 추가
+        1. 원하는 탭에서 **"➕ 새 링크 추가"** 섹션을 확장합니다
+        2. **링크 제목**과 **URL**을 입력합니다
+        3. **"링크 추가"** 버튼을 클릭합니다
+        
+        ### 링크 관리 기능
+        - **⭐ 즐겨찾기**: 자주 사용하는 링크를 즐겨찾기로 설정
+        - **🗑️ 삭제**: 불필요한 링크 제거
+        - **🔍 검색**: 링크 제목이나 URL로 검색
+        - **⭐ 즐겨찾기만 보기**: 즐겨찾기 링크만 필터링
+        
+        ### 탭 관리
+        - **탭 추가**: 사이드바에서 새로운 카테고리 탭 생성
+        - **탭 이름 변경**: 기존 탭의 이름 수정
+        - **탭 삭제**: 불필요한 탭 제거 (링크도 함께 삭제됨)
+        """)
+    
+    with manual_tabs[2]:
+        st.markdown("""
+        ## ⚙️ 고급 기능
+        
+        ### 관리자 기능
+        관리자 계정으로 로그인 시 추가 기능이 제공됩니다:
+        - **팀별 조회**: 다른 팀의 링크 현황 조회
+        - **사용자별 조회**: 특정 사용자의 링크 관리
+        - **기본 탭 관리**: 신규 사용자를 위한 기본 탭 설정
+        
+        ### 데이터 백업
+        - 모든 링크 데이터는 자동으로 저장됩니다
+        - 팀별, 사용자별로 개별 파일로 관리됩니다
+        
+        ### 반응형 디자인
+        - 데스크톱, 태블릿, 모바일에서 모두 사용 가능
+        - 화면 크기에 따라 레이아웃이 자동 조정됩니다
+        """)
+    
+    with manual_tabs[3]:
+        st.markdown("""
+        ## ❓ 자주 묻는 질문
+        
+        ### Q: 링크가 저장되지 않아요
+        **A**: 브라우저 새로고침 후에도 문제가 지속되면 관리자에게 문의하세요.
+        
+        ### Q: 다른 팀의 링크를 볼 수 있나요?
+        **A**: 관리자 권한이 있는 경우에만 다른 팀의 링크를 조회할 수 있습니다.
+        
+        ### Q: 즐겨찾기는 어떻게 설정하나요?
+        **A**: 각 링크 옆의 ⭐ 버튼을 클릭하면 즐겨찾기로 설정/해제됩니다.
+        
+        ### Q: 탭 순서를 변경할 수 있나요?
+        **A**: 현재 버전에서는 탭 순서 변경 기능을 지원하지 않습니다.
+        
+        ### Q: 링크를 대량으로 추가할 수 있나요?
+        **A**: 현재는 개별 추가만 지원합니다. 대량 추가가 필요한 경우 관리자에게 문의하세요.
+        
+        ### 📞 문의사항
+        기술적 문제나 개선 사항이 있으시면 기술운영팀으로 연락주세요.
+        """)
 
-# ---- 포털 링크 하단 고정 ----
+elif st.session_state.current_page == "설비 상태진단":
+    # ---- 설비 상태진단 페이지 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>🔧 설비 상태진단</h1>
+            <p>설비 운영 현황 및 상태 모니터링</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 임시 대시보드 (실제 데이터 연동 전)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+            <div class="dashboard-card">
+                <div class="card-title">정상 설비</div>
+                <div class="card-value" style="color: #22c55e;">85</div>
+                <div class="card-description">전체 설비 중 정상 가동</div>
+                <span class="status-badge status-online">정상</span>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+            <div class="dashboard-card">
+                <div class="card-title">점검 필요</div>
+                <div class="card-value" style="color: #f59e0b;">12</div>
+                <div class="card-description">정기점검 또는 주의 필요</div>
+                <span class="status-badge status-maintenance">점검</span>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+            <div class="dashboard-card">
+                <div class="card-title">이상 설비</div>
+                <div class="card-value" style="color: #ef4444;">3</div>
+                <div class="card-description">즉시 조치 필요</div>
+                <span class="status-badge status-offline">이상</span>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # 설비 상태 목록 (샘플 데이터)
+    st.markdown("### 📋 설비 상태 현황")
+    
+    equipment_data = [
+        {"설비명": "펌프 #001", "상태": "정상", "온도": "45°C", "압력": "2.3 bar", "최종점검": "2024-06-15"},
+        {"설비명": "밸브 #023", "상태": "점검", "온도": "52°C", "압력": "2.1 bar", "최종점검": "2024-06-10"},
+        {"설비명": "센서 #045", "상태": "이상", "온도": "78°C", "압력": "1.8 bar", "최종점검": "2024-06-12"},
+        {"설비명": "펌프 #002", "상태": "정상", "온도": "43°C", "압력": "2.4 bar", "최종점검": "2024-06-16"},
+        {"설비명": "압축기 #001", "상태": "점검", "온도": "65°C", "압력": "3.2 bar", "최종점검": "2024-06-08"},
+    ]
+    
+    for equipment in equipment_data:
+        status_class = "status-online" if equipment["상태"] == "정상" else "status-maintenance" if equipment["상태"] == "점검" else "status-offline"
+        
+        st.markdown(f"""
+            <div class="dashboard-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="card-title" style="margin-bottom: 0.5rem;">{equipment["설비명"]}</div>
+                        <div style="font-size: 0.9rem; color: #6b7280;">
+                            온도: {equipment["온도"]} | 압력: {equipment["압력"]} | 점검일: {equipment["최종점검"]}
+                        </div>
+                    </div>
+                    <span class="status-badge {status_class}">{equipment["상태"]}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.info("🔧 이 기능은 현재 개발 중입니다. 실제 설비 데이터와 연동을 하고 싶..긴 한데 안될 것 같습니다..ㅠㅠ")
+
+elif st.session_state.current_page == "팀별 기본 탭 관리" and is_admin:
+    # ---- 관리자 전용: 팀별 기본 탭 관리 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>⚙️ 팀별 기본 탭 관리</h1>
+            <p>신규 사용자를 위한 기본 탭 및 링크 설정</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 팀 선택
+    selected_team_for_default = st.selectbox("기본 탭을 설정할 팀 선택", teams, key="default_team_select")
+    
+    # 기본 탭 데이터 로드
+    default_tabs_key = f"default_tabs_{selected_team_for_default}"
+    if default_tabs_key not in st.session_state:
+        st.session_state[default_tabs_key] = load_default_tabs(selected_team_for_default)
+    
+    default_tabs_data = st.session_state[default_tabs_key]
+    
+    # 기본 탭 관리
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 📝 기본 탭 편집")
+        
+        if default_tabs_data:
+            # 기존 탭들 표시
+            for tab_name in list(default_tabs_data.keys()):
+                with st.expander(f"📁 {tab_name}", expanded=False):
+                    # 탭 이름 변경
+                    new_tab_name = st.text_input("탭 이름", value=tab_name, key=f"default_tab_name_{tab_name}")
+                    
+                    # 링크 목록
+                    st.markdown("**링크 목록:**")
+                    links = default_tabs_data[tab_name]["links"]
+                    
+                    for i, link in enumerate(links):
+                        col_link1, col_link2, col_link3 = st.columns([3, 3, 1])
+                        with col_link1:
+                            new_desc = st.text_input("제목", value=link["description"], key=f"default_link_desc_{tab_name}_{i}")
+                        with col_link2:
+                            new_url = st.text_input("URL", value=link["url"], key=f"default_link_url_{tab_name}_{i}")
+                        with col_link3:
+                            if st.button("🗑️", key=f"default_delete_link_{tab_name}_{i}"):
+                                default_tabs_data[tab_name]["links"].pop(i)
+                                save_default_tabs(selected_team_for_default, default_tabs_data)
+                                st.rerun()
+                        
+                        # 링크 업데이트
+                        if new_desc != link["description"] or new_url != link["url"]:
+                            default_tabs_data[tab_name]["links"][i] = {
+                                "description": new_desc,
+                                "url": new_url,
+                                "favorite": link.get("favorite", False)
+                            }
+                    
+                    # 새 링크 추가
+                    st.markdown("**새 링크 추가:**")
+                    col_new1, col_new2, col_new3 = st.columns([3, 3, 1])
+                    with col_new1:
+                        new_link_desc = st.text_input("새 링크 제목", key=f"new_default_link_desc_{tab_name}")
+                    with col_new2:
+                        new_link_url = st.text_input("새 링크 URL", key=f"new_default_link_url_{tab_name}")
+                    with col_new3:
+                        if st.button("➕", key=f"add_default_link_{tab_name}"):
+                            if new_link_desc and new_link_url:
+                                default_tabs_data[tab_name]["links"].append({
+                                    "description": new_link_desc,
+                                    "url": new_link_url,
+                                    "favorite": False
+                                })
+                                save_default_tabs(selected_team_for_default, default_tabs_data)
+                                st.rerun()
+                    
+                    # 탭 삭제
+                    if st.button(f"탭 '{tab_name}' 삭제", key=f"delete_default_tab_{tab_name}"):
+                        del default_tabs_data[tab_name]
+                        save_default_tabs(selected_team_for_default, default_tabs_data)
+                        st.rerun()
+                    
+                    # 탭 이름 변경 적용
+                    if new_tab_name != tab_name and new_tab_name:
+                        default_tabs_data[new_tab_name] = default_tabs_data.pop(tab_name)
+                        default_tabs_data[new_tab_name]["description"] = new_tab_name
+                        save_default_tabs(selected_team_for_default, default_tabs_data)
+                        st.rerun()
+        
+        # 새 탭 추가
+        st.markdown("### ➕ 새 기본 탭 추가")
+        new_default_tab_name = st.text_input("새 탭 이름", key="new_default_tab_name")
+        if st.button("기본 탭 추가"):
+            if new_default_tab_name and new_default_tab_name not in default_tabs_data:
+                default_tabs_data[new_default_tab_name] = {
+                    "description": new_default_tab_name,
+                    "links": []
+                }
+                save_default_tabs(selected_team_for_default, default_tabs_data)
+                st.success(f"'{new_default_tab_name}' 기본 탭이 추가되었습니다.")
+                st.rerun()
+    
+    with col2:
+        st.markdown("### 💾 저장 및 적용")
+        
+        if st.button("변경사항 저장", use_container_width=True):
+            save_default_tabs(selected_team_for_default, default_tabs_data)
+            st.success("기본 탭 설정이 저장되었습니다.")
+        
+        st.markdown("### 📊 현재 설정 요약")
+        total_default_tabs = len(default_tabs_data)
+        total_default_links = sum(len(tab["links"]) for tab in default_tabs_data.values())
+        
+        st.markdown(f"""
+            <div class="settings-card">
+                <h4>📁 {selected_team_for_default}</h4>
+                <p>기본 탭: {total_default_tabs}개</p>
+                <p>기본 링크: {total_default_links}개</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### ℹ️ 안내사항")
+        st.info("""
+        - 여기서 설정한 기본 탭은 해당 팀의 신규 사용자가 처음 로그인할 때 자동으로 생성됩니다.
+        - 기존 사용자에게는 영향을 주지 않습니다.
+        - 변경 후 반드시 '변경사항 저장'을 클릭해주세요.
+        """)
+
+# ---- 하단 고정 포털 링크 ----
 st.markdown("""
     <div class="bottom-links">
-        <div style="display: flex; flex-direction: row; justify-content: center; gap: 20px;">
-            <a href="https://bi.e1.co.kr/#/signin?isDefaultIdentityPoolLogin=true&redirect=%2Fsite%2FE1%2Fviews%2FBI-IX_S1_5__new%2FECOverallDashboard%3F%253Aiid%3D1" target="_blank">BI Portal</a>
-            <a href="https://she.e1.co.kr/index" target="_blank">SHE Portal</a>
-            <a href="https://ariba.portal.url" target="_blank">Ariba</a>
-            <a href="https://www.e1.co.kr/ko/main" target="_blank">E1 홈페이지</a>
-        </div>
+        <a href="http://aih.e1.co.kr/#/" target="_blank">AIH 바로가기</a>
+        <a href="https://she.e1.co.kr/index" target="_blank">SHE포탈</a>
+        <a href="https://wels.lsworkplace.com/Website/Portal/Main.aspx" target="_blank">Wels(그룹웨어)</a>
+        <a href="https://motor.guardione.ai/dashboard" target="_blank">예지보전</a>
     </div>
 """, unsafe_allow_html=True)
