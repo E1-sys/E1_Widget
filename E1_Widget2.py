@@ -556,6 +556,112 @@ def rename_tab(old_name, new_name):
         return True
     return False
 
+def create_backup_zip():
+    """모든 사용자 데이터를 ZIP 파일로 백업"""
+    backup_data = {}
+    
+    # sites_data 폴더의 모든 파일 백업
+    if os.path.exists(SAVE_DIR):
+        for file in os.listdir(SAVE_DIR):
+            if file.endswith('.json'):
+                file_path = os.path.join(SAVE_DIR, file)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    backup_data[f"sites_data/{file}"] = json.load(f)
+    
+    # default_tabs 폴더의 모든 파일 백업
+    if os.path.exists(DEFAULT_TABS_DIR):
+        for file in os.listdir(DEFAULT_TABS_DIR):
+            if file.endswith('.json'):
+                file_path = os.path.join(DEFAULT_TABS_DIR, file)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    backup_data[f"default_tabs/{file}"] = json.load(f)
+    
+    # ZIP 생성
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # 백업 정보 파일 추가
+        backup_info = {
+            "backup_date": datetime.now().isoformat(),
+            "total_files": len(backup_data),
+            "version": "1.0"
+        }
+        zip_file.writestr("backup_info.json", json.dumps(backup_info, ensure_ascii=False, indent=2))
+        
+        # 각 데이터 파일 추가
+        for file_path, data in backup_data.items():
+            zip_file.writestr(file_path, json.dumps(data, ensure_ascii=False, indent=2))
+    
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue()
+
+def restore_from_backup(uploaded_file):
+    """백업 파일로부터 데이터 복원"""
+    try:
+        with zipfile.ZipFile(uploaded_file, 'r') as zip_file:
+            # 백업 정보 확인
+            if "backup_info.json" in zip_file.namelist():
+                backup_info = json.loads(zip_file.read("backup_info.json").decode('utf-8'))
+                
+                restored_files = []
+                # 각 파일 복원
+                for file_path in zip_file.namelist():
+                    if file_path.startswith("sites_data/") and file_path.endswith(".json"):
+                        data = json.loads(zip_file.read(file_path).decode('utf-8'))
+                        local_path = os.path.join(SAVE_DIR, file_path.replace("sites_data/", ""))
+                        with open(local_path, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        restored_files.append(file_path)
+                    
+                    elif file_path.startswith("default_tabs/") and file_path.endswith(".json"):
+                        data = json.loads(zip_file.read(file_path).decode('utf-8'))
+                        local_path = os.path.join(DEFAULT_TABS_DIR, file_path.replace("default_tabs/", ""))
+                        with open(local_path, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        restored_files.append(file_path)
+                
+                return True, len(restored_files), backup_info["backup_date"]
+            else:
+                return False, 0, "백업 정보 파일이 없습니다."
+    except Exception as e:
+        return False, 0, f"복원 중 오류 발생: {str(e)}"
+
+def apply_default_tabs_to_existing_users(team):
+    """기본 탭 변경사항을 기존 사용자들에게 적용"""
+    default_data = load_default_tabs(team)
+    
+    # 해당 팀의 모든 사용자 파일 찾기
+    all_files = os.listdir(SAVE_DIR)
+    user_files = [f for f in all_files if f.endswith(f"_{team}_sites.json")]
+    
+    updated_users = []
+    for file in user_files:
+        user_id = file.split("_")[0]
+        file_path = os.path.join(SAVE_DIR, file)
+        
+        # 사용자 데이터 로드
+        with open(file_path, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+        
+        # 기본 탭과 병합 (기존 사용자 데이터 우선)
+        for tab_name, tab_data in default_data.items():
+            if tab_name not in user_data:
+                # 새로운 기본 탭 추가
+                user_data[tab_name] = copy.deepcopy(tab_data)
+            else:
+                # 기존 탭에 새로운 기본 링크 추가 (중복 체크)
+                existing_urls = [link["url"] for link in user_data[tab_name]["links"]]
+                for default_link in tab_data["links"]:
+                    if default_link["url"] not in existing_urls:
+                        user_data[tab_name]["links"].append(copy.deepcopy(default_link))
+        
+        # 업데이트된 데이터 저장
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(user_data, f, ensure_ascii=False, indent=2)
+        
+        updated_users.append(user_id)
+    
+    return updated_users
+
 # ---- 로그인 화면 ----
 if not st.session_state.authenticated:
     st.markdown("""
@@ -630,7 +736,7 @@ with st.sidebar:
     # 네비게이션 메뉴
     nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
     if is_admin:
-        nav_options.append("⚙️ 팀별 기본 탭 관리")
+        nav_options.extend(["⚙️ 팀별 기본 탭 관리", "💾 데이터 백업 관리"])
     
     selected_nav = st.radio("메뉴", nav_options, key="navigation")
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
@@ -698,6 +804,43 @@ if site_key not in st.session_state:
 current_sites = st.session_state[site_key]
 current_pages = st.session_state.get(page_key, [])
 
+def apply_default_tabs_to_existing_users(team):
+    """기본 탭 변경사항을 기존 사용자들에게 적용"""
+    default_data = load_default_tabs(team)
+    
+    # 해당 팀의 모든 사용자 파일 찾기
+    all_files = os.listdir(SAVE_DIR)
+    user_files = [f for f in all_files if f.endswith(f"_{team}_sites.json")]
+    
+    updated_users = []
+    for file in user_files:
+        user_id = file.split("_")[0]
+        file_path = os.path.join(SAVE_DIR, file)
+        
+        # 사용자 데이터 로드
+        with open(file_path, "r", encoding="utf-8") as f:
+            user_data = json.load(f)
+        
+        # 기본 탭과 병합 (기존 사용자 데이터 우선)
+        for tab_name, tab_data in default_data.items():
+            if tab_name not in user_data:
+                # 새로운 기본 탭 추가
+                user_data[tab_name] = copy.deepcopy(tab_data)
+            else:
+                # 기존 탭에 새로운 기본 링크 추가 (중복 체크)
+                existing_urls = [link["url"] for link in user_data[tab_name]["links"]]
+                for default_link in tab_data["links"]:
+                    if default_link["url"] not in existing_urls:
+                        user_data[tab_name]["links"].append(copy.deepcopy(default_link))
+        
+        # 업데이트된 데이터 저장
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(user_data, f, ensure_ascii=False, indent=2)
+        
+        updated_users.append(user_id)
+    
+    return updated_users
+
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
     # ---- 대시보드 페이지 ----
@@ -749,9 +892,9 @@ if st.session_state.current_page == "홈":
         avg_links = round(total_links / total_tabs, 1) if total_tabs > 0 else 0
         st.markdown(f"""
             <div class="dashboard-card">
-                <div class="card-title">뭐 넣지..?(평균 링크/탭)</div>
-                <div class="card-value">{avg_links}</div>
-                <div class="card-description">탭당 평균 링크 수</div>
+                <div class="card-title">총 사용자 수</div>
+                <div class="card-value">168</div>
+                <div class="card-description">위젯 사용자 수</div>
             </div>
         """, unsafe_allow_html=True)
     
@@ -1063,6 +1206,7 @@ elif st.session_state.current_page == "설비 상태진단":
         """, unsafe_allow_html=True)
     
     st.info("🔧 이 기능은 현재 개발 중입니다. 실제 설비 데이터와 연동을 하고 싶..긴 한데 안될 것 같습니다..ㅠㅠ")
+ 
 
 elif st.session_state.current_page == "팀별 기본 탭 관리" and is_admin:
     # ---- 관리자 전용: 팀별 기본 탭 관리 ----
@@ -1163,25 +1307,26 @@ elif st.session_state.current_page == "팀별 기본 탭 관리" and is_admin:
                 save_default_tabs(selected_team_for_default, default_tabs_data)
                 st.success(f"'{new_default_tab_name}' 기본 탭이 추가되었습니다.")
                 st.rerun()
-    
-    with col2:
-        st.markdown("### 💾 저장 및 적용")
+
+        with col2:
+            st.markdown("### 💾 저장 및 적용")
+            
+            if st.button("변경사항 저장", use_container_width=True):
+                save_default_tabs(selected_team_for_default, default_tabs_data)
+                st.success("기본 탭 설정이 저장되었습니다.")
+            
+            st.markdown("### 📊 현재 설정 요약")
+            total_default_tabs = len(default_tabs_data)
+            total_default_links = sum(len(tab["links"]) for tab in default_tabs_data.values())
+            
+            st.markdown(f"""
+                <div class="settings-card">
+                    <h4>📁 {selected_team_for_default}</h4>
+                    <p>기본 탭: {total_default_tabs}개</p>
+                    <p>기본 링크: {total_default_links}개</p>
+                </div>
+            """, unsafe_allow_html=True)
         
-        if st.button("변경사항 저장", use_container_width=True):
-            save_default_tabs(selected_team_for_default, default_tabs_data)
-            st.success("기본 탭 설정이 저장되었습니다.")
-        
-        st.markdown("### 📊 현재 설정 요약")
-        total_default_tabs = len(default_tabs_data)
-        total_default_links = sum(len(tab["links"]) for tab in default_tabs_data.values())
-        
-        st.markdown(f"""
-            <div class="settings-card">
-                <h4>📁 {selected_team_for_default}</h4>
-                <p>기본 탭: {total_default_tabs}개</p>
-                <p>기본 링크: {total_default_links}개</p>
-            </div>
-        """, unsafe_allow_html=True)
         
         st.markdown("### ℹ️ 안내사항")
         st.info("""
@@ -1190,42 +1335,74 @@ elif st.session_state.current_page == "팀별 기본 탭 관리" and is_admin:
         - 변경 후 반드시 '변경사항 저장'을 클릭해주세요.
         """)
 
-def apply_default_tabs_to_existing_users(team):
-    """기본 탭 변경사항을 기존 사용자들에게 적용"""
-    default_data = load_default_tabs(team)
+elif st.session_state.current_page == "데이터 백업 관리" and is_admin:
+    # ---- 관리자 전용: 데이터 백업 관리 ----
+    st.markdown("""
+        <div class="main-header">
+            <h1>💾 데이터 백업 관리</h1>
+            <p>시스템 데이터 백업 및 복원</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # 해당 팀의 모든 사용자 파일 찾기
-    all_files = os.listdir(SAVE_DIR)
-    user_files = [f for f in all_files if f.endswith(f"_{team}_sites.json")]
+    col1, col2 = st.columns(2)
     
-    updated_users = []
-    for file in user_files:
-        user_id = file.split("_")[0]
-        file_path = os.path.join(SAVE_DIR, file)
+    with col1:
+        st.markdown("### 📦 데이터 백업")
+        st.info("모든 사용자 데이터와 기본 탭 설정을 ZIP 파일로 백업합니다.")
         
-        # 사용자 데이터 로드
-        with open(file_path, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-        
-        # 기본 탭과 병합 (기존 사용자 데이터 우선)
-        for tab_name, tab_data in default_data.items():
-            if tab_name not in user_data:
-                # 새로운 기본 탭 추가
-                user_data[tab_name] = copy.deepcopy(tab_data)
-            else:
-                # 기존 탭에 새로운 기본 링크 추가 (중복 체크)
-                existing_urls = [link["url"] for link in user_data[tab_name]["links"]]
-                for default_link in tab_data["links"]:
-                    if default_link["url"] not in existing_urls:
-                        user_data[tab_name]["links"].append(copy.deepcopy(default_link))
-        
-        # 업데이트된 데이터 저장
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(user_data, f, ensure_ascii=False, indent=2)
-        
-        updated_users.append(user_id)
+        if st.button("전체 데이터 백업 생성", use_container_width=True):
+            try:
+                backup_zip = create_backup_zip()
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"e1_link_backup_{timestamp}.zip"
+                
+                st.download_button(
+                    label="💾 백업 파일 다운로드",
+                    data=backup_zip,
+                    file_name=filename,
+                    mime="application/zip",
+                    use_container_width=True
+                )
+                st.success("백업 파일이 생성되었습니다!")
+            except Exception as e:
+                st.error(f"백업 생성 중 오류 발생: {str(e)}")
     
-    return updated_users
+    with col2:
+        st.markdown("### 📂 데이터 복원")
+        st.warning("⚠️ 복원 시 기존 데이터가 덮어씌워질 수 있습니다.")
+        
+        uploaded_file = st.file_uploader(
+            "백업 파일 선택",
+            type=['zip'],
+            help="이전에 생성한 백업 ZIP 파일을 선택하세요."
+        )
+        
+        if uploaded_file is not None:
+            if st.button("데이터 복원 실행", use_container_width=True):
+                success, restored_count, backup_date = restore_from_backup(uploaded_file)
+                
+                if success:
+                    st.success(f"복원 완료! {restored_count}개 파일이 복원되었습니다.")
+                    st.info(f"백업 날짜: {backup_date}")
+                    st.rerun()
+                else:
+                    st.error(f"복원 실패: {backup_date}")
+    
+    # 현재 데이터 현황
+    st.markdown("---")
+    st.markdown("### 📊 현재 데이터 현황")
+    
+    # 파일 통계
+    sites_files = len([f for f in os.listdir(SAVE_DIR) if f.endswith('.json')]) if os.path.exists(SAVE_DIR) else 0
+    default_files = len([f for f in os.listdir(DEFAULT_TABS_DIR) if f.endswith('.json')]) if os.path.exists(DEFAULT_TABS_DIR) else 0
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("사용자 데이터 파일", sites_files)
+    with col2:
+        st.metric("기본 탭 설정 파일", default_files)
+    with col3:
+        st.metric("총 파일 수", sites_files + default_files)
 
 # ---- 하단 고정 포털 링크 ----
 st.markdown("""
