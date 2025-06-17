@@ -668,7 +668,7 @@ if not st.session_state.authenticated:
     st.markdown("""
         <div class="main-header">
             <h1>🔗 E1 Link</h1>
-            <p>AIH Portal Hub - 설비 정보 통합 관리 시스템</p>
+            <p>AIH Portal Hub - 설비 정보 통합 위젯</p>
         </div>
     """, unsafe_allow_html=True)
     
