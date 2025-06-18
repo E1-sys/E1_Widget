@@ -69,7 +69,7 @@ st.markdown("""
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
             margin: -80px auto 0;
             color: white;
-            padding: 0.2rem;
+            padding: 0.15rem;
             border-radius: 15px;
             margin-bottom: 0.5rem;
             text-align: center;
@@ -954,8 +954,6 @@ elif st.session_state.current_page == "링크 바로가기":
             <p>팀별 포털 및 시스템 링크 관리</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("---")
     
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
