@@ -67,11 +67,11 @@ st.markdown("""
         /* 헤더 스타일 */
         .main-header {
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-            margin: -75px auto 0;
+            margin: -30px auto 0;
             color: white;
-            padding: 2rem;
+            padding: 0.3rem;
             border-radius: 15px;
-            margin-bottom: 2rem;
+            margin-bottom: 0.5rem;
             text-align: center;
             box-shadow: 0 10px 25px rgba(217, 119, 6, 0.3);
         }
@@ -668,7 +668,7 @@ if not st.session_state.authenticated:
     st.markdown("""
         <div class="main-header">
             <h1>🔗 E1 Link</h1>
-            <p>AIH Portal Hub - 설비 정보 통합 위젯</p>
+            <p>AIH Portal Hub - 설비 정보 통합 관리 시스템</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -955,15 +955,8 @@ elif st.session_state.current_page == "링크 바로가기":
         </div>
     """, unsafe_allow_html=True)
     
-    # 검색 기능
     st.markdown("---")
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...")
-    with col2:
-        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기")
-
-    st.markdown("---")
+    
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
         tab_names = list(current_sites.keys())
@@ -974,31 +967,56 @@ elif st.session_state.current_page == "링크 바로가기":
                 tab_data = current_sites[tab_name]
                 links = tab_data["links"]
                 
-                # 검색 및 필터링
-                filtered_links = []
-                for idx, link in enumerate(links):
-                    if search_query:
-                        if search_query.lower() not in link["description"].lower() and search_query.lower() not in link["url"].lower():
-                            continue
-                    if show_favorites_only and not link.get("favorite", False):
-                        continue
-                    filtered_links.append((idx, link))
-                
                 # 링크 추가 폼 (관리자 또는 본인만)
                 if is_admin or viewing_user_id == user_id:
                     with st.expander("➕ 새 링크 추가", expanded=False):
                         with st.form(f"add_link_form_{tab_name}"):
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                new_title = st.text_input("링크 제목", key=f"title_{tab_name}")
-                            with col2:
-                                new_url = st.text_input("URL (http:// 또는 https:// 포함)", key=f"url_{tab_name}")
+                            # 링크 제목
+                            new_title = st.text_input("링크 제목", key=f"title_{tab_name}")
+                            
+                            # AIH 설비 여부 체크박스
+                            is_aih_equipment = st.checkbox("AIH 설비 여부", key=f"aih_equipment_{tab_name}")
+                            
+                            # 기지 선택 (AIH 설비인 경우에만 표시)
+                            selected_base = None
+                            if is_aih_equipment:
+                                selected_base = st.selectbox(
+                                    "기지 선택", 
+                                    ["대산", "인천", "여수"], 
+                                    key=f"base_select_{tab_name}"
+                                )
+                            
+                            # URL 입력
+                            if is_aih_equipment and selected_base:
+                                # 기지별 기본 URL 매핑
+                                base_urls = {
+                                    "대산": "http://aih.e1.co.kr/#/item/DS%7C",
+                                    "인천": "http://aih.e1.co.kr/#/item/IC%7C", 
+                                    "여수": "http://aih.e1.co.kr/#/item/YS%7C"
+                                }
+                                
+                                st.text(f"기본 URL: {base_urls[selected_base]}")
+                                equipment_name = st.text_input(
+                                    "설비명 입력", 
+                                    placeholder="예: P-501A",
+                                    key=f"equipment_name_{tab_name}"
+                                )
+                                # 전체 URL 조합
+                                new_url = base_urls[selected_base] + (equipment_name if equipment_name else "")
+                                st.text(f"완성된 URL: {new_url}")
+                            else:
+                                new_url = st.text_input(
+                                    "URL (http:// 또는 https:// 포함)", 
+                                    key=f"url_{tab_name}"
+                                )
                             
                             submitted = st.form_submit_button("링크 추가")
                             if submitted:
                                 if new_title and new_url:
                                     if not new_url.startswith(('http://', 'https://')):
                                         st.error("URL은 http:// 또는 https://로 시작해야 합니다.")
+                                    elif is_aih_equipment and selected_base and not equipment_name:
+                                        st.error("설비명을 입력해주세요.")
                                     else:
                                         add_link(tab_name, new_title, new_url)
                                         st.success(f"'{new_title}' 링크가 추가되었습니다.")
@@ -1006,40 +1024,68 @@ elif st.session_state.current_page == "링크 바로가기":
                                 else:
                                     st.error("제목과 URL을 모두 입력해주세요.")
                 
-                # 링크 목록 표시
-                if filtered_links:
-                    for idx, link in filtered_links:
-                        col2, col1, col3 = st.columns([1, 18, 1])
-                        with col1:
-                            st.markdown(f"""
-                                <div class="link-card">
-                                    <div class="link-content">
-                                        <a href="{link['url']}" target="_blank">{link['description']}</a>
+                # 검색 및 필터 기능
+                st.markdown("---")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...", key=f"search_{tab_name}")
+                with col2:
+                    show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key=f"favorites_{tab_name}")
+                
+                # 링크 목록 필터링
+                if links:
+                    # 검색어 및 즐겨찾기 필터 적용
+                    filtered_links = []
+                    for idx, link in enumerate(links):
+                        # 검색어 필터
+                        if search_query:
+                            if search_query.lower() not in link["description"].lower() and search_query.lower() not in link["url"].lower():
+                                continue
+                        # 즐겨찾기 필터
+                        if show_favorites_only and not link.get("favorite", False):
+                            continue
+                        filtered_links.append((idx, link))
+                    
+                    # 필터링된 링크 표시
+                    if filtered_links:
+                        for idx, link in filtered_links:
+                            col2, col1, col3 = st.columns([1, 18, 1])
+                            with col1:
+                                st.markdown(f"""
+                                    <div class="link-card">
+                                        <div class="link-content">
+                                            <a href="{link['url']}" target="_blank">{link['description']}</a>
+                                        </div>
                                     </div>
-                                </div>
-                            """, unsafe_allow_html=True)
-                        
-                        if is_admin or viewing_user_id == user_id:
-                            with col2:
-                                if st.button("⭐" if not link.get('favorite', False) else "☆", 
-                                           key=f"fav_{tab_name}_{idx}",
-                                           help="즐겨찾기 토글"):
-                                    toggle_favorite(tab_name, idx)
-                                    st.rerun()
+                                """, unsafe_allow_html=True)
                             
-                            with col3:
-                                if st.button("🗑️", key=f"del_{tab_name}_{idx}", help="링크 삭제"):
-                                    delete_link(tab_name, idx)
-                                    st.success("링크가 삭제되었습니다.")
-                                    st.rerun()
-    
-                else:
-                    if search_query or show_favorites_only:
-                        st.info("검색 조건에 맞는 링크가 없습니다.")
+                            if is_admin or viewing_user_id == user_id:
+                                with col2:
+                                    # 즐겨찾기 버튼: True면 노란별(⭐), False면 빈별(☆)
+                                    fav_icon = "⭐" if link.get('favorite', False) else "☆"
+                                    if st.button(fav_icon, 
+                                               key=f"fav_{tab_name}_{idx}",
+                                               help="즐겨찾기 토글"):
+                                        toggle_favorite(tab_name, idx)
+                                        st.rerun()
+                                
+                                with col3:
+                                    if st.button("🗑️", key=f"del_{tab_name}_{idx}", help="링크 삭제"):
+                                        delete_link(tab_name, idx)
+                                        st.success("링크가 삭제되었습니다.")
+                                        st.rerun()
                     else:
-                        st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
+                        if show_favorites_only:
+                            st.info("즐겨찾기한 링크가 없습니다.")
+                        elif search_query:
+                            st.info("검색 조건에 맞는 링크가 없습니다.")
+                        else:
+                            st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
+                else:
+                    st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
+
 
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
