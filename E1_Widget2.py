@@ -1056,8 +1056,8 @@ elif st.session_state.current_page == "링크 바로가기":
                 links = tab_data["links"]
 
                 # 검색 및 필터 기능
-                col1, col2 = st.columns([0, 1])
-                with col2:
+                col1, col2 = st.columns([1, 1])
+                with col1:
                     show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key=f"favorites_{tab_name}")
                 
                 # 링크 목록 필터링 (사이드바의 검색 조건 사용)
