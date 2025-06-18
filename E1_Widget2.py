@@ -955,12 +955,14 @@ elif st.session_state.current_page == "링크 바로가기":
         </div>
     """, unsafe_allow_html=True)
     
+    st.markdown("---")
+    
     # 사이드바에 검색 기능 추가
     with st.sidebar:
         st.markdown("### 🔍 링크 검색")
         search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
         show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
-        
+    
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
         tab_names = list(current_sites.keys())
@@ -1047,14 +1049,7 @@ elif st.session_state.current_page == "링크 바로가기":
                 tab_data = current_sites[tab_name]
                 links = tab_data["links"]
                 
-                # 검색 및 필터 기능
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...", key=f"search_{tab_name}")
-                with col2:
-                    show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key=f"favorites_{tab_name}")
-                
-                # 링크 목록 필터링
+                # 링크 목록 필터링 (사이드바의 검색 조건 사용)
                 if links:
                     # 검색어 및 즐겨찾기 필터 적용
                     filtered_links = []
