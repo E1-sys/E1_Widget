@@ -844,6 +844,11 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
+    # 사이드바에 검색 기능 추가
+    with st.sidebar:
+        st.markdown("### 🔍 링크 검색")
+        search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
+        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     # ---- 대시보드 페이지 ----
     st.markdown("""
         <div class="main-header">
