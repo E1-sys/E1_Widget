@@ -964,7 +964,6 @@ elif st.session_state.current_page == "링크 바로가기":
     
     # 사이드바에 검색 기능 추가
     with st.sidebar:
-        st.markdown("---")
         st.markdown("### 🔍 링크 검색")
         search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
         show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
@@ -972,93 +971,75 @@ elif st.session_state.current_page == "링크 바로가기":
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
         tab_names = list(current_sites.keys())
-        
-        # 탭과 추가 버튼을 같은 행에 배치
-        col1, col2 = st.columns([9, 2])
-        
-        with col1:
-            tabs = st.tabs(tab_names)
-        
-        with col2:
-            # 관리자 또는 본인만 새 링크 추가 버튼 표시
-            if is_admin or viewing_user_id == user_id:
-                # 현재 활성 탭 결정 (기본값은 첫 번째 탭)
-                if 'active_tab_index' not in st.session_state:
-                    st.session_state.active_tab_index = 0
-                
-                current_tab_name = tab_names[st.session_state.active_tab_index]
-                
-                with st.popover("➕ 새 링크"):
-                    st.markdown(f"**{current_tab_name}** 탭에 추가")
-                    
-                    # 링크 제목
-                    new_title = st.text_input("링크 제목", key=f"popup_title_{current_tab_name}")
-                    
-                    # AIH 설비 여부 체크박스
-                    is_aih_equipment = st.checkbox("AIH 설비 여부", key=f"popup_aih_equipment_{current_tab_name}")
-                    
-                    # 기지 선택 (AIH 설비인 경우에만 표시)
-                    selected_base = None
-                    if is_aih_equipment:
-                        selected_base = st.selectbox(
-                            "기지 선택", 
-                            ["대산", "인천", "여수"], 
-                            key=f"popup_base_select_{current_tab_name}"
-                        )
-                    
-                    # URL 입력
-                    if is_aih_equipment and selected_base:
-                        # 기지별 기본 URL 매핑
-                        base_urls = {
-                            "대산": "http://aih.e1.co.kr/#/item/DS%7C",
-                            "인천": "http://aih.e1.co.kr/#/item/IC%7C", 
-                            "여수": "http://aih.e1.co.kr/#/item/YS%7C"
-                        }
-                        
-                        st.caption(f"기본 URL: {base_urls[selected_base]}")
-                        equipment_name = st.text_input(
-                            "설비명", 
-                            placeholder="예: P-501A",
-                            key=f"popup_equipment_name_{current_tab_name}"
-                        )
-                        # 전체 URL 조합
-                        new_url = base_urls[selected_base] + (equipment_name if equipment_name else "")
-                        if equipment_name:
-                            st.caption(f"완성된 URL: {new_url}")
-                    else:
-                        new_url = st.text_input(
-                            "URL", 
-                            placeholder="http:// 또는 https://",
-                            key=f"popup_url_{current_tab_name}"
-                        )
-                    
-                    # 추가 버튼
-                    if st.button("링크 추가", key=f"popup_submit_{current_tab_name}", use_container_width=True):
-                        if new_title and new_url:
-                            if not new_url.startswith(('http://', 'https://')):
-                                st.error("URL은 http:// 또는 https://로 시작해야 합니다.")
-                            elif is_aih_equipment and selected_base and not equipment_name:
-                                st.error("설비명을 입력해주세요.")
-                            else:
-                                add_link(current_tab_name, new_title, new_url)
-                                st.success(f"'{new_title}' 링크가 추가되었습니다.")
-                                st.rerun()
-                        else:
-                            st.error("제목과 URL을 모두 입력해주세요.")
+        tabs = st.tabs(tab_names)
         
         # 각 탭의 내용 표시
         for i, (tab_name, tab) in enumerate(zip(tab_names, tabs)):
             with tab:
-                # 탭 클릭 시 활성 탭 인덱스 업데이트 (JavaScript 없이는 완벽하지 않음)
-                # 실제로는 사용자가 탭을 클릭할 때마다 popover의 대상 탭이 자동으로 변경되지 않을 수 있음
+                # 탭별 개별 링크 추가 버튼 (각 탭 내부에 배치)
+                if is_admin or viewing_user_id == user_id:
+                    col1, col2 = st.columns([9, 2])
+                    with col2:
+                        with st.popover("➕ 새 링크"):
+                            st.markdown(f"**{tab_name}** 탭에 추가")
+                            
+                            # 링크 제목
+                            new_title = st.text_input("링크 제목", key=f"popup_title_{tab_name}_{i}")
+                            
+                            # AIH 설비 여부 체크박스
+                            is_aih_equipment = st.checkbox("AIH 설비 여부", key=f"popup_aih_equipment_{tab_name}_{i}")
+                            
+                            # 기지 선택 (AIH 설비인 경우에만 표시)
+                            selected_base = None
+                            if is_aih_equipment:
+                                selected_base = st.selectbox(
+                                    "기지 선택", 
+                                    ["대산", "인천", "여수"], 
+                                    key=f"popup_base_select_{tab_name}_{i}"
+                                )
+                            
+                            # URL 입력
+                            if is_aih_equipment and selected_base:
+                                # 기지별 기본 URL 매핑
+                                base_urls = {
+                                    "대산": "http://aih.e1.co.kr/#/item/DS%7C",
+                                    "인천": "http://aih.e1.co.kr/#/item/IC%7C", 
+                                    "여수": "http://aih.e1.co.kr/#/item/YS%7C"
+                                }
+                                
+                                st.caption(f"기본 URL: {base_urls[selected_base]}")
+                                equipment_name = st.text_input(
+                                    "설비명", 
+                                    placeholder="예: P-501A",
+                                    key=f"popup_equipment_name_{tab_name}_{i}"
+                                )
+                                # 전체 URL 조합
+                                new_url = base_urls[selected_base] + (equipment_name if equipment_name else "")
+                                if equipment_name:
+                                    st.caption(f"완성된 URL: {new_url}")
+                            else:
+                                new_url = st.text_input(
+                                    "URL", 
+                                    placeholder="http:// 또는 https://",
+                                    key=f"popup_url_{tab_name}_{i}"
+                                )
+                            
+                            # 추가 버튼
+                            if st.button("링크 추가", key=f"popup_submit_{tab_name}_{i}", use_container_width=True):
+                                if new_title and new_url:
+                                    if not new_url.startswith(('http://', 'https://')):
+                                        st.error("URL은 http:// 또는 https://로 시작해야 합니다.")
+                                    elif is_aih_equipment and selected_base and not equipment_name:
+                                        st.error("설비명을 입력해주세요.")
+                                    else:
+                                        add_link(tab_name, new_title, new_url)
+                                        st.success(f"'{new_title}' 링크가 추가되었습니다.")
+                                        st.rerun()
+                                else:
+                                    st.error("제목과 URL을 모두 입력해주세요.")
                 
                 tab_data = current_sites[tab_name]
                 links = tab_data["links"]
-
-                # 검색 및 필터 기능
-                col1, col2 = st.columns([1, 1])
-                with col1:
-                    show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key=f"favorites_{tab_name}")
                 
                 # 링크 목록 필터링 (사이드바의 검색 조건 사용)
                 if links:
