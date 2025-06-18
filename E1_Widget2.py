@@ -955,33 +955,93 @@ elif st.session_state.current_page == "링크 바로가기":
         </div>
     """, unsafe_allow_html=True)
     
+    st.markdown("---")
+    
+    # 사이드바에 검색 기능 추가
+    with st.sidebar:
+        st.markdown("### 🔍 링크 검색")
+        search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
+        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
+    
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
         tab_names = list(current_sites.keys())
+        
+        # 현재 활성 탭 인덱스 초기화
+        if 'active_tab_index' not in st.session_state:
+            st.session_state.active_tab_index = 0
+        
+        # 탭 변경 감지를 위한 JavaScript 코드 추가
+        st.markdown("""
+            <script>
+            function detectTabChange() {
+                const tabs = document.querySelectorAll('[data-testid="stTabs"] button');
+                tabs.forEach((tab, index) => {
+                    tab.addEventListener('click', function() {
+                        // Streamlit에 탭 변경 이벤트 전달
+                        window.parent.postMessage({
+                            type: 'tab_change',
+                            tab_index: index
+                        }, '*');
+                    });
+                });
+            }
+            
+            // DOM이 로드된 후 실행
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', detectTabChange);
+            } else {
+                detectTabChange();
+            }
+            
+            // 메시지 리스너 추가
+            window.addEventListener('message', function(event) {
+                if (event.data.type === 'tab_change') {
+                    // 여기서 Streamlit 상태를 업데이트할 수 있습니다
+                    console.log('Tab changed to index:', event.data.tab_index);
+                }
+            });
+            </script>
+        """, unsafe_allow_html=True)
         
         # 탭과 추가 버튼을 같은 행에 배치
         col1, col2 = st.columns([9, 2])
         
         with col1:
-            tabs = st.tabs(tab_names)
+            # 탭 생성 시 각 탭에 고유 키 부여
+            tab_container = st.container()
+            with tab_container:
+                # 탭 변경 감지를 위한 숨겨진 selectbox 사용
+                selected_tab_index = st.selectbox(
+                    "현재 탭",
+                    range(len(tab_names)),
+                    format_func=lambda x: tab_names[x],
+                    key="tab_selector",
+                    label_visibility="collapsed"
+                )
+                
+                # 선택된 탭 인덱스 업데이트
+                if selected_tab_index != st.session_state.active_tab_index:
+                    st.session_state.active_tab_index = selected_tab_index
+                    st.rerun()
+                
+                # 실제 탭 표시
+                tabs = st.tabs(tab_names)
         
         with col2:
             # 관리자 또는 본인만 새 링크 추가 버튼 표시
             if is_admin or viewing_user_id == user_id:
-                # 현재 활성 탭 결정 (기본값은 첫 번째 탭)
-                if 'active_tab_index' not in st.session_state:
-                    st.session_state.active_tab_index = 0
-                
                 current_tab_name = tab_names[st.session_state.active_tab_index]
                 
                 with st.popover("➕ 새 링크"):
                     st.markdown(f"**{current_tab_name}** 탭에 추가")
+                    st.caption(f"현재 활성 탭: {current_tab_name}")
                     
                     # 링크 제목
-                    new_title = st.text_input("링크 제목", key=f"popup_title_{current_tab_name}")
+                    new_title = st.text_input("링크 제목", key=f"popup_title_{current_tab_name}_{st.session_state.active_tab_index}")
                     
                     # AIH 설비 여부 체크박스
-                    is_aih_equipment = st.checkbox("AIH 설비 여부", key=f"popup_aih_equipment_{current_tab_name}")
+                    is_aih_equipment = st.checkbox("AIH 설비 여부", key=f"popup_aih_equipment_{current_tab_name}_{st.session_state.active_tab_index}")
                     
                     # 기지 선택 (AIH 설비인 경우에만 표시)
                     selected_base = None
@@ -989,7 +1049,7 @@ elif st.session_state.current_page == "링크 바로가기":
                         selected_base = st.selectbox(
                             "기지 선택", 
                             ["대산", "인천", "여수"], 
-                            key=f"popup_base_select_{current_tab_name}"
+                            key=f"popup_base_select_{current_tab_name}_{st.session_state.active_tab_index}"
                         )
                     
                     # URL 입력
@@ -1005,7 +1065,7 @@ elif st.session_state.current_page == "링크 바로가기":
                         equipment_name = st.text_input(
                             "설비명", 
                             placeholder="예: P-501A",
-                            key=f"popup_equipment_name_{current_tab_name}"
+                            key=f"popup_equipment_name_{current_tab_name}_{st.session_state.active_tab_index}"
                         )
                         # 전체 URL 조합
                         new_url = base_urls[selected_base] + (equipment_name if equipment_name else "")
@@ -1015,11 +1075,11 @@ elif st.session_state.current_page == "링크 바로가기":
                         new_url = st.text_input(
                             "URL", 
                             placeholder="http:// 또는 https://",
-                            key=f"popup_url_{current_tab_name}"
+                            key=f"popup_url_{current_tab_name}_{st.session_state.active_tab_index}"
                         )
                     
                     # 추가 버튼
-                    if st.button("링크 추가", key=f"popup_submit_{current_tab_name}", use_container_width=True):
+                    if st.button("링크 추가", key=f"popup_submit_{current_tab_name}_{st.session_state.active_tab_index}", use_container_width=True):
                         if new_title and new_url:
                             if not new_url.startswith(('http://', 'https://')):
                                 st.error("URL은 http:// 또는 https://로 시작해야 합니다.")
@@ -1035,20 +1095,17 @@ elif st.session_state.current_page == "링크 바로가기":
         # 각 탭의 내용 표시
         for i, (tab_name, tab) in enumerate(zip(tab_names, tabs)):
             with tab:
-                # 탭 클릭 시 활성 탭 인덱스 업데이트 (JavaScript 없이는 완벽하지 않음)
-                # 실제로는 사용자가 탭을 클릭할 때마다 popover의 대상 탭이 자동으로 변경되지 않을 수 있음
+                # 현재 탭이 활성 탭인지 확인
+                is_active_tab = i == st.session_state.active_tab_index
                 
                 tab_data = current_sites[tab_name]
                 links = tab_data["links"]
                 
-                # 검색 및 필터 기능
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    search_query = st.text_input("🔍 링크 검색", placeholder="링크 제목 또는 URL로 검색...", key=f"search_{tab_name}")
-                with col2:
-                    show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key=f"favorites_{tab_name}")
+                # 활성 탭 표시 (디버깅용, 필요시 제거)
+                if is_active_tab:
+                    st.markdown(f"<small style='color: green;'>✅ 현재 활성 탭</small>", unsafe_allow_html=True)
                 
-                # 링크 목록 필터링
+                # 링크 목록 필터링 (사이드바의 검색 조건 사용)
                 if links:
                     # 검색어 및 즐겨찾기 필터 적용
                     filtered_links = []
@@ -1080,13 +1137,13 @@ elif st.session_state.current_page == "링크 바로가기":
                                     # 즐겨찾기 버튼: True면 노란별(⭐), False면 빈별(☆)
                                     fav_icon = "⭐" if link.get('favorite', False) else "☆"
                                     if st.button(fav_icon, 
-                                               key=f"fav_{tab_name}_{idx}",
+                                               key=f"fav_{tab_name}_{idx}_{i}",
                                                help="즐겨찾기 토글"):
                                         toggle_favorite(tab_name, idx)
                                         st.rerun()
                                 
                                 with col3:
-                                    if st.button("🗑️", key=f"del_{tab_name}_{idx}", help="링크 삭제"):
+                                    if st.button("🗑️", key=f"del_{tab_name}_{idx}_{i}", help="링크 삭제"):
                                         delete_link(tab_name, idx)
                                         st.success("링크가 삭제되었습니다.")
                                         st.rerun()
@@ -1101,6 +1158,36 @@ elif st.session_state.current_page == "링크 바로가기":
                     st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
+
+# 추가: 탭 변경 감지를 위한 보조 함수
+def handle_tab_change():
+    """탭 변경 시 호출되는 함수"""
+    if 'tab_selector' in st.session_state:
+        new_tab_index = st.session_state.tab_selector
+        if new_tab_index != st.session_state.get('active_tab_index', 0):
+            st.session_state.active_tab_index = new_tab_index
+            # popover 상태 초기화 (필요시)
+            # st.rerun()
+
+# 더 간단한 대안 방법: radio button 사용
+def alternative_tab_implementation():
+    """더 간단한 탭 구현 방법"""
+    if current_sites:
+        tab_names = list(current_sites.keys())
+        
+        # 라디오 버튼으로 탭 선택
+        selected_tab = st.radio(
+            "탭 선택",
+            tab_names,
+            horizontal=True,
+            key="selected_tab_radio"
+        )
+        
+        # 선택된 탭의 인덱스 찾기
+        selected_tab_index = tab_names.index(selected_tab)
+        st.session_state.active_tab_index = selected_tab_index
+        
+        # 나머지 로직은 동일하게 유지
 
 
 elif st.session_state.current_page == "사용자 매뉴얼":
