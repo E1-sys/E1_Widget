@@ -854,7 +854,6 @@ with st.sidebar:
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
 
     with st.sidebar:
-    st.markdown("---")
     st.markdown("### 🤖 AI 어시스턴트")
     
     # 채팅 토글
