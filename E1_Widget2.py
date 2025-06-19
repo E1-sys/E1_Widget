@@ -6,7 +6,7 @@ import zipfile
 import io
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta
-import openai
+from openai import OpenAI
 
 # ---- 페이지 설정 ----
 st.set_page_config(
@@ -489,12 +489,13 @@ if "authenticated" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
 
-# ---- 챗봇 함수들 ----
 def get_ai_response(user_message, context=""):
     """AI 챗봇 응답 생성"""
     try:
-        # OpenAI GPT 사용 예시
-        response = openai.ChatCompletion.create(
+        # OpenAI 클라이언트 생성 (1.0+ 방식)
+        client = OpenAI(api_key=api_key)
+        
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": f"""
@@ -515,6 +516,7 @@ def get_ai_response(user_message, context=""):
             temperature=0.7
         )
         return response.choices[0].message.content
+        
     except Exception as e:
         return f"죄송합니다. 현재 AI 서비스에 문제가 있습니다. 오류: {str(e)}"
 
@@ -534,28 +536,6 @@ def search_links_with_ai(query, current_sites):
                 })
     
     return matching_links
-
-def get_chatbot_suggestions(user_role, current_team):
-    """사용자 역할과 팀에 따른 챗봇 제안"""
-    suggestions = {
-        "기술운영팀": [
-            "설비 점검 일정은 어떻게 확인하나요?",
-            "AIH 시스템 사용법을 알려주세요",
-            "펌프 이상 시 대처 방법은?"
-        ],
-        "SHE지원팀": [
-            "안전 규정 최신 업데이트는?",
-            "사고 발생시 보고 절차는?",
-            "가스 누출 시 대응 방법은?"
-        ],
-        "기본": [
-            "링크를 어떻게 추가하나요?",
-            "즐겨찾기 설정 방법은?",
-            "시스템 사용법을 알려주세요"
-        ]
-    }
-    
-    return suggestions.get(current_team, suggestions["기본"])
 
 # ---- 데이터 관리 함수들 ----
 def save_sites(uid, team):
@@ -1252,21 +1232,6 @@ elif st.session_state.current_page == "AI 어시스턴트":
     
     # 사용자 컨텍스트 생성
     user_context = f"팀: {current_team}, 사용자: {viewing_user_id}"
-    
-    # 제안 질문들
-    st.markdown("### 💡 추천 질문")
-    suggestions = get_chatbot_suggestions(user_id, current_team)
-    
-    col1, col2, col3 = st.columns(3)
-    for i, suggestion in enumerate(suggestions):
-        with [col1, col2, col3][i % 3]:
-            if st.button(suggestion, key=f"suggestion_{i}"):
-                st.session_state.chat_messages.append({"role": "user", "content": suggestion})
-                response = get_ai_response(suggestion, user_context)
-                st.session_state.chat_messages.append({"role": "assistant", "content": response})
-                st.rerun()
-    
-    st.markdown("---")
     
     # 채팅 인터페이스
     st.markdown("### 💬 채팅")
