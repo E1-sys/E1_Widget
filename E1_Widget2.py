@@ -495,74 +495,6 @@ if "authenticated" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
 
-# ---- 챗봇 함수들 ----
-def get_ai_response(user_message, context=""):
-    """AI 챗봇 응답 생성"""
-    try:
-        # OpenAI GPT 사용 예시
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": f"""
-                당신은 E1 회사의 AI 어시스턴트입니다. 
-                주요 역할:
-                1. 설비 관련 질문 답변 및 링크 제공
-                2. 안전 가이드라인 제공
-                3. 시스템 사용법 안내
-                4. 링크 검색 및 추천
-                
-                현재 사용자 컨텍스트: {context}
-                
-                답변은 친근하고 전문적으로 해주세요.
-                """},
-                {"role": "user", "content": user_message}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"죄송합니다. 현재 AI 서비스에 문제가 있습니다. 오류: {str(e)}"
-
-def search_links_with_ai(query, current_sites):
-    """AI를 활용한 스마트 링크 검색"""
-    matching_links = []
-    
-    # 기본 키워드 검색
-    for tab_name, tab_data in current_sites.items():
-        for link in tab_data["links"]:
-            if query.lower() in link['description'].lower() or query.lower() in link['url'].lower():
-                matching_links.append({
-                    'tab': tab_name,
-                    'title': link['description'],
-                    'url': link['url'],
-                    'favorite': link.get('favorite', False)
-                })
-    
-    return matching_links
-
-def get_chatbot_suggestions(user_role, current_team):
-    """사용자 역할과 팀에 따른 챗봇 제안"""
-    suggestions = {
-        "기술운영팀": [
-            "설비 점검 일정은 어떻게 확인하나요?",
-            "AIH 시스템 사용법을 알려주세요",
-            "펌프 이상 시 대처 방법은?"
-        ],
-        "SHE지원팀": [
-            "안전 규정 최신 업데이트는?",
-            "사고 발생시 보고 절차는?",
-            "가스 누출 시 대응 방법은?"
-        ],
-        "기본": [
-            "링크를 어떻게 추가하나요?",
-            "즐겨찾기 설정 방법은?",
-            "시스템 사용법을 알려주세요"
-        ]
-    }
-    
-    return suggestions.get(current_team, suggestions["기본"])
-
 # ---- 데이터 관리 함수들 ----
 def save_sites(uid, team):
     file_path = os.path.join(SAVE_DIR, f"{uid}_{team}_sites.json")
@@ -853,70 +785,6 @@ with st.sidebar:
     
     selected_nav = st.radio("메뉴", nav_options, key="navigation")
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
-
-    with st.sidebar:
-        st.markdown("### 🤖 AI 어시스턴트")
-        
-        # 채팅 토글
-        if st.button("💬 채팅 열기/닫기", key="toggle_chat"):
-            st.session_state.show_chat = not st.session_state.get('show_chat', False)
-        
-        # 채팅 UI 표시
-        if st.session_state.get('show_chat', False):
-            # 채팅 메시지 초기화
-            if 'chat_messages' not in st.session_state:
-                st.session_state.chat_messages = [
-                    {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 시스템 사용법이나 설비 관련 질문을 해주세요."}
-                ]
-            
-            # 채팅 메시지 표시 (컨테이너 사용)
-            chat_container = st.container()
-            with chat_container:
-                for idx, msg in enumerate(st.session_state.chat_messages):
-                    if msg["role"] == "user":
-                        message(msg["content"], is_user=True, key=f"user_{idx}")
-                    else:
-                        message(msg["content"], is_user=False, key=f"bot_{idx}")
-            
-            # 채팅 입력
-            with st.container():
-                user_input = st.text_input(
-                    "메시지를 입력하세요...", 
-                    key="chat_input",
-                    placeholder="예: 링크 추가 방법을 알려주세요"
-                )
-                
-                col1, col2 = st.columns([3, 1])
-                with col1:
-                    if st.button("전송", key="send_chat", use_container_width=True):
-                        if user_input.strip():
-                            # 사용자 메시지 추가
-                            st.session_state.chat_messages.append({
-                                "role": "user", 
-                                "content": user_input
-                            })
-                            
-                            # 현재 페이지 컨텍스트 추가
-                            context = f"현재 페이지: {st.session_state.get('current_page', '홈')}"
-                            
-                            # AI 응답 생성
-                            with st.spinner("AI가 답변을 생성하고 있습니다..."):
-                                bot_response = get_chatbot_response(user_input, context)
-                            
-                            # 봇 응답 추가
-                            st.session_state.chat_messages.append({
-                                "role": "assistant", 
-                                "content": bot_response
-                            })
-                            
-                            st.rerun()
-                
-                with col2:
-                    if st.button("🗑️", key="clear_chat", help="채팅 내역 삭제"):
-                        st.session_state.chat_messages = [
-                            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 시스템 사용법이나 설비 관련 질문을 해주세요."}
-                        ]
-                        st.rerun()
 
     st.markdown("---")
     # 사이드바에 검색 기능 추가
@@ -1265,6 +1133,88 @@ elif st.session_state.current_page == "링크 바로가기":
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
 
+# 별도의 AI 어시스턴트 페이지 추가 (페이지 라우팅 부분에 추가)
+elif st.session_state.current_page == "AI 어시스턴트":
+    st.markdown("""
+        <div class="main-header">
+            <h1>🤖 AI 어시스턴트</h1>
+            <p>E1 Link 시스템 사용법 및 설비 관련 질문 응답</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # 채팅 메시지 초기화
+    if 'main_chat_messages' not in st.session_state:
+        st.session_state.main_chat_messages = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 궁금한 것이 있으시면 언제든 질문해주세요."}
+        ]
+    
+    # 채팅 영역
+    chat_container = st.container()
+    
+    with chat_container:
+        # 채팅 메시지 표시
+        for idx, msg in enumerate(st.session_state.main_chat_messages):
+            if msg["role"] == "user":
+                st.markdown(f"""
+                    <div style="display: flex; justify-content: flex-end; margin: 1rem 0;">
+                        <div style="background: #e1f5fe; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%;">
+                            <strong>You:</strong> {msg["content"]}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                    <div style="display: flex; justify-content: flex-start; margin: 1rem 0;">
+                        <div style="background: #f3e5f5; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%;">
+                            <strong>🤖 AI:</strong> {msg["content"]}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+    
+    # 채팅 입력 영역
+    st.markdown("---")
+    col1, col2, col3 = st.columns([6, 1, 1])
+    
+    with col1:
+        user_input = st.text_input(
+            "메시지를 입력하세요...", 
+            key="main_chat_input",
+            placeholder="예: 링크를 즐겨찾기에 추가하는 방법을 알려주세요"
+        )
+    
+    with col2:
+        if st.button("전송", key="main_send_chat", use_container_width=True):
+            if user_input.strip():
+                # 사용자 메시지 추가
+                st.session_state.main_chat_messages.append({
+                    "role": "user", 
+                    "content": user_input
+                })
+                
+                # 컨텍스트 정보 추가
+                context = f"""
+                현재 페이지: {st.session_state.get('current_page', '홈')}
+                사용자 탭 수: {len(st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {}))}
+                """
+                
+                # AI 응답 생성
+                with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                    bot_response = get_chatbot_response(user_input, context)
+                
+                # 봇 응답 추가
+                st.session_state.main_chat_messages.append({
+                    "role": "assistant", 
+                    "content": bot_response
+                })
+                
+                st.rerun()
+    
+    with col3:
+        if st.button("🗑️", key="main_clear_chat", help="채팅 내역 삭제"):
+            st.session_state.main_chat_messages = [
+                {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 궁금한 것이 있으시면 언제든 질문해주세요."}
+            ]
+            st.rerun()
 
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
