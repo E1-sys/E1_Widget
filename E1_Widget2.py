@@ -899,7 +899,7 @@ if st.session_state.current_page == "홈":
         st.markdown(f"""
             <div class="dashboard-card">
                 <div class="card-title">총 사용자 수</div>
-                <div class="card-value">{updated_users}</div>
+                <div class="card-value">-</div>
                 <div class="card-description">위젯 사용자 수</div>
             </div>
         """, unsafe_allow_html=True)
