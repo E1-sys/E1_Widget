@@ -10,7 +10,7 @@ import requests
 import time
 # ---- 챗봇 설정 ----
 # 방법 1: Hugging Face (무료)
-HUGGINGFACE_MODEL_URL = "	https://api-inference.huggingface.co/models/google/flan-t5-base"
+HUGGINGFACE_MODEL_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
 
 def call_ai_chatbot(message):
     """AI 챗봇 호출 (Hugging Face API 사용)"""
