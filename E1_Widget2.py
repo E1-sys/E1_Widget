@@ -10,6 +10,7 @@ import requests
 import time
 # ---- 챗봇 설정 ----
 # 방법 1: Hugging Face (무료)
+HUGGINGFACE_API_KEY = "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"  # 실제 토큰으로 교체
 HUGGINGFACE_MODEL_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
 
 def call_ai_chatbot(message):
