@@ -6,7 +6,42 @@ import zipfile
 import io
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta
-import openai
+import requests
+import time
+# ---- 챗봇 설정 ----
+# 방법 1: Hugging Face (무료)
+HUGGINGFACE_API_KEY = "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"  # 실제 토큰으로 교체
+HUGGINGFACE_MODEL_URL = "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill"
+
+def call_ai_chatbot(message):
+    """AI 챗봇 호출 (Hugging Face API 사용)"""
+    headers = {
+        "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "inputs": message,
+        "parameters": {
+            "max_length": 100,
+            "temperature": 0.7
+        }
+    }
+    
+    try:
+        response = requests.post(HUGGINGFACE_MODEL_URL, headers=headers, json=payload)
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                return result[0].get("generated_text", "죄송합니다. 응답을 생성할 수 없습니다.")
+            else:
+                return "죄송합니다. 응답을 생성할 수 없습니다."
+        elif response.status_code == 503:
+            return "🔄 AI 모델이 준비 중입니다. 잠시 후 다시 시도해주세요."
+        else:
+            return "⚠️ 일시적인 오류가 발생했습니다."
+    except Exception as e:
+        return "❌ 연결 오류가 발생했습니다."
 
 # ---- 페이지 설정 ----
 st.set_page_config(
