@@ -10,6 +10,7 @@ import google.generativeai as genai
 from streamlit_chat import message
 import time
 
+GEMINI_API_KEY = st.secrets["chatbot"]["gemini_api_key"]
 genai.configure(api_key=GEMINI_API_KEY)
 @st.cache_resource
 def init_chatbot():
