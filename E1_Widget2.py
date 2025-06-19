@@ -29,13 +29,6 @@ def call_ai_chatbot(message):
         "temperature": 0.7
     }
 
-    payload = {
-    "model": "mistralai/Mistral-7B-Instruct-v0.1",  # 또는 사용 중인 정확한 모델 이름
-    "prompt": message,
-    "max_tokens": 200,
-    "temperature": 0.7
-}
-
     try:
         response = requests.post(HUGGINGFACE_MODEL_URL, headers=headers, json=payload)
 
