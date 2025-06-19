@@ -6,51 +6,7 @@ import zipfile
 import io
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta
-import requests
-import time
-# ---- 챗봇 설정 ----
-
-
-
-# 방법 1: Hugging Face (무료)
-HUGGINGFACE_MODEL_URL = "https://router.huggingface.co/featherless-ai/v1/completions"
-
-def call_ai_chatbot(message):
-    """AI 챗봇 호출 (Hugging Face API - prompt 기반 모델 예: OpenChat, Mistral 등)"""
-    headers = {
-        "Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}",
-        "Content-Type": "application/json"
-    }
-
-    payload = {
-        "model": "meta-llama/Llama-3.1-8B",
-        "prompt": message,
-        "max_tokens": 200,
-        "temperature": 0.7
-    }
-
-    try:
-        response = requests.post(HUGGINGFACE_MODEL_URL, headers=headers, json=payload)
-
-        if response.status_code == 200:
-            result = response.json()
-            # 모델에 따라 text or choices[0]['text'] 사용
-            if isinstance(result, dict):
-                return result.get("text", "죄송합니다. 응답을 생성할 수 없습니다.")
-            elif isinstance(result, list):
-                return result[0].get("generated_text", "죄송합니다. 응답을 생성할 수 없습니다.")
-            else:
-                return "⚠️ 알 수 없는 응답 형식입니다."
-        
-        elif response.status_code == 503:
-            return "🔄 AI 모델이 준비 중입니다. 잠시 후 다시 시도해주세요."
-        
-        else:
-            return f"⚠️ 오류 코드 {response.status_code}: {response.text}"
-    
-    except Exception as e:
-        return f"❌ 연결 오류: {str(e)}"
-
+import openai
 
 # ---- 페이지 설정 ----
 st.set_page_config(
@@ -84,66 +40,6 @@ def is_mobile():
         return width and int(width) < 768
     except Exception:
         return False
-
-chatbot_css = """
-<style>
-    .floating-chat-btn {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        cursor: pointer;
-        z-index: 1000;
-        font-size: 24px;
-        color: white;
-        text-decoration: none;
-        transition: transform 0.3s ease;
-    }
-    
-    .floating-chat-btn:hover {
-        transform: scale(1.1);
-    }
-    
-    .chat-container {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #e0e0e0;
-        border-radius: 10px;
-        padding: 15px;
-        background: white;
-        margin-bottom: 15px;
-    }
-    
-    .user-message {
-        background: #007bff;
-        color: white;
-        padding: 8px 12px;
-        border-radius: 15px 15px 5px 15px;
-        margin: 5px 0;
-        text-align: right;
-        margin-left: 20%;
-    }
-    
-    .bot-message {
-        background: #f1f3f4;
-        color: #333;
-        padding: 8px 12px;
-        border-radius: 15px 15px 15px 5px;
-        margin: 5px 0;
-        margin-right: 20%;
-    }
-</style>
-"""
-
-# 기존 CSS 부분에 chatbot_css 추가
-st.markdown(chatbot_css, unsafe_allow_html=True)
 
 # ---- 전역 CSS 스타일 ----
 st.markdown("""
@@ -908,7 +804,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     # 네비게이션 메뉴
-    nav_options = ["🏠 홈", "🔗 링크 바로가기", "🤖 AI 도우미", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
+    nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
     if is_admin:
         nav_options.extend(["⚙️ 팀별 기본 탭 관리", "💾 데이터 백업 관리"])
     
@@ -1262,137 +1158,6 @@ elif st.session_state.current_page == "링크 바로가기":
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
 
-elif st.session_state.current_page == "AI 도우미":
-    st.markdown("""
-        <div class="main-header">
-            <h1>🤖 AI 도우미</h1>
-            <p>E1 Link 시스템에 대해 궁금한 것이 있으면 언제든 물어보세요!</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 채팅 기록 초기화
-    if "ai_chat_history" not in st.session_state:
-        st.session_state.ai_chat_history = []
-    
-    # 채팅 컨테이너
-    chat_container = st.container()
-    
-    with chat_container:
-        if st.session_state.ai_chat_history:
-            st.markdown('<div class="chat-container">', unsafe_allow_html=True)
-            for chat in st.session_state.ai_chat_history:
-                st.markdown(f'<div class="user-message">👤 {chat["user"]}</div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="bot-message">🤖 {chat["bot"]}</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        else:
-            st.info("👋 안녕하세요! E1 Link AI 도우미입니다. 무엇을 도와드릴까요?")
-    
-    # 채팅 입력 폼
-    with st.form("ai_chat_form", clear_on_submit=True):
-        col1, col2 = st.columns([5, 1])
-        with col1:
-            user_message = st.text_input("💬 메시지를 입력하세요...", key="ai_chat_input", placeholder="예: 링크 추가 방법을 알려주세요")
-        with col2:
-            send_btn = st.form_submit_button("📤 전송", use_container_width=True)
-    
-    # 빠른 질문 버튼들
-    st.markdown("### 💡 빠른 질문")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("🔗 링크 추가 방법", use_container_width=True):
-            user_message = "링크를 추가하는 방법을 알려주세요"
-            send_btn = True
-    
-    with col2:
-        if st.button("📁 탭 관리 방법", use_container_width=True):
-            user_message = "탭을 관리하는 방법을 알려주세요"
-            send_btn = True
-    
-    with col3:
-        if st.button("⭐ 즐겨찾기 사용법", use_container_width=True):
-            user_message = "즐겨찾기 기능을 사용하는 방법을 알려주세요"
-            send_btn = True
-    
-    # 메시지 처리
-    if send_btn and user_message:
-        # 사용자 메시지를 기록에 추가
-        with st.spinner("🤖 AI가 답변을 생성하고 있습니다..."):
-            ai_response = call_ai_chatbot(user_message)
-            
-            # 시스템 관련 질문에 대한 특별 응답
-            if any(keyword in user_message.lower() for keyword in ['링크 추가', '링크추가', '링크 만들기']):
-                ai_response = """
-🔗 **링크 추가 방법:**
-
-1. 원하는 탭을 선택합니다
-2. 탭 내의 '➕ 새 링크' 버튼을 클릭합니다
-3. 링크 제목과 URL을 입력합니다
-4. AIH 설비인 경우 '기지 선택' 후 설비명을 입력하세요
-5. '링크 추가' 버튼을 클릭하면 완료됩니다!
-
-💡 **팁:** AIH 설비의 경우 기지를 선택하면 기본 URL이 자동으로 설정됩니다.
-                """
-            elif any(keyword in user_message.lower() for keyword in ['탭 관리', '탭 추가', '탭 삭제']):
-                ai_response = """
-📁 **탭 관리 방법:**
-
-**탭 추가:**
-- 사이드바 '📝 탭 관리' → '➕ 탭 추가'에서 새 탭 이름 입력
-
-**탭 이름 변경:**
-- 사이드바 '📝 탭 관리' → '🏷️ 탭 이름 변경'에서 수정
-
-**탭 삭제:**
-- 사이드바 '📝 탭 관리' → '🗑️ 탭 삭제'에서 삭제
-
-⚠️ **주의:** 탭을 삭제하면 해당 탭의 모든 링크가 함께 삭제됩니다.
-                """
-            elif any(keyword in user_message.lower() for keyword in ['즐겨찾기', '즐겨 찾기', '북마크']):
-                ai_response = """
-⭐ **즐겨찾기 사용법:**
-
-1. 링크 목록에서 각 링크 왼쪽의 별(☆) 버튼을 클릭합니다
-2. 즐겨찾기가 설정되면 노란 별(⭐)로 변경됩니다
-3. 사이드바에서 '⭐ 즐겨찾기만 보기'를 체크하면 즐겨찾기한 링크만 표시됩니다
-4. 홈 화면에서도 즐겨찾기 링크들을 빠르게 확인할 수 있습니다
-
-💡 **활용 팁:** 자주 사용하는 링크들을 즐겨찾기로 설정하여 빠르게 접근하세요!
-                """
-            
-            # 채팅 기록에 추가
-            st.session_state.ai_chat_history.append({
-                "user": user_message,
-                "bot": ai_response
-            })
-            
-            # 기록이 너무 길어지면 오래된 것 삭제
-            if len(st.session_state.ai_chat_history) > 50:
-                st.session_state.ai_chat_history = st.session_state.ai_chat_history[-50:]
-        
-        st.rerun()
-    
-    # 채팅 기록 관리
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🗑️ 대화 기록 삭제", use_container_width=True):
-            st.session_state.ai_chat_history = []
-            st.rerun()
-    
-    with col2:
-        if st.button("📄 대화 기록 내보내기", use_container_width=True):
-            if st.session_state.ai_chat_history:
-                chat_export = ""
-                for i, chat in enumerate(st.session_state.ai_chat_history, 1):
-                    chat_export += f"[{i}] 사용자: {chat['user']}\n"
-                    chat_export += f"[{i}] AI: {chat['bot']}\n\n"
-                
-                st.download_button(
-                    label="💾 대화 기록 다운로드",
-                    data=chat_export,
-                    file_name=f"e1_link_chat_history_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                    mime="text/plain"
-                )
 
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
@@ -1759,14 +1524,6 @@ elif st.session_state.current_page == "데이터 백업 관리" and is_admin:
         st.metric("기본 탭 설정 파일", default_files)
     with col3:
         st.metric("총 파일 수", sites_files + default_files)
-
-# 페이지 최하단에 추가:
-if st.session_state.current_page != "AI 도우미":
-    st.markdown("""
-        <div class="floating-chat-btn" onclick="document.querySelector('input[value=\\"🤖 AI 도우미\\"]').click();">
-            🤖
-        </div>
-    """, unsafe_allow_html=True)
 
 # ---- 하단 고정 포털 링크 ----
 st.markdown("""
