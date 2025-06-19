@@ -16,7 +16,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 def init_chatbot():
     """챗봇 모델 초기화"""
     try:
-        model = genai.GenerativeModel('gemini-1.0-pro')
+        model = genai.GenerativeModel('gemini-pro')
         return model
     except Exception as e:
         st.error(f"챗봇 초기화 실패: {str(e)}")
