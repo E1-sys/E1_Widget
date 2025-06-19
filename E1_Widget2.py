@@ -1052,7 +1052,7 @@ elif st.session_state.current_page == "링크 바로가기":
                     # 필터링된 링크 표시
                     if filtered_links:
                         for idx, link in filtered_links:
-                            col2, col1, col3 = st.columns([1, 18, 1])
+                            col2, col1, col3 = st.columns([1, 15, 1])
                             with col1:
                                 st.markdown(f"""
                                     <div class="link-card">
