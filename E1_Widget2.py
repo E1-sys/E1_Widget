@@ -741,6 +741,13 @@ with st.sidebar:
     
     selected_nav = st.radio("메뉴", nav_options, key="navigation")
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
+
+        st.markdown("---")
+        # 사이드바에 검색 기능 추가
+        with st.sidebar:
+            st.markdown("### 🔍 링크 검색")
+            search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
+            show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     
     # 탭 관리 기능을 사이드바에 추가
     if is_admin or viewing_user_id == user_id:
@@ -787,12 +794,6 @@ with st.sidebar:
                     delete_tab(tab_to_delete)
                     st.success(f"'{tab_to_delete}' 탭이 삭제되었습니다.")
                     st.rerun()
-        st.markdown("---")
-        # 사이드바에 검색 기능 추가
-        with st.sidebar:
-            st.markdown("### 🔍 링크 검색")
-            search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
-            show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     
     if st.button("🚪 로그아웃", use_container_width=True):
         st.session_state.authenticated = False
