@@ -972,6 +972,8 @@ elif st.session_state.current_page == "링크 바로가기":
                 # 탭별 개별 링크 추가 버튼 (각 탭 내부에 배치)
                 if is_admin or viewing_user_id == user_id:
                     col1, col2 = st.columns([9, 2])
+                    with col1:
+                        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
                     with col2:
                         with st.popover("➕ 새 링크"):
                             st.markdown(f"**{tab_name}** 탭에 추가")
