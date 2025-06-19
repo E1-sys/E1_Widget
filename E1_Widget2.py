@@ -24,12 +24,39 @@ def init_chatbot():
 
 # 챗봇 응답 생성 함수
 def get_chatbot_response(message, context=""):
-    """챗봇 응답 생성"""
+    """챗봇 응답 생성 (사용자 링크 데이터 포함)"""
     model = init_chatbot()
     if not model:
         return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
     
     try:
+        # 현재 사용자의 모든 링크 데이터 수집
+        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+        
+        # 링크 데이터를 텍스트 형태로 변환
+        links_info = []
+        for tab_name, tab_data in current_user_sites.items():
+            links_info.append(f"탭명: {tab_name}")
+            for i, link in enumerate(tab_data.get("links", [])):
+                description = link.get("description", "")
+                url = link.get("url", "")
+                is_favorite = "⭐" if link.get("favorite", False) else ""
+                
+                # AIH 설비 링크인지 판단
+                is_aih = "http://aih.e1.co.kr" in url
+                base_location = ""
+                if is_aih:
+                    if "DS%7C" in url:
+                        base_location = "대산"
+                    elif "IC%7C" in url:
+                        base_location = "인천"
+                    elif "YS%7C" in url:
+                        base_location = "여수"
+                
+                links_info.append(f"  - {description} ({url}) {is_favorite} {'[AIH설비-' + base_location + ']' if is_aih else ''}")
+        
+        links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
+        
         # 시스템 프롬프트 설정
         system_prompt = f"""
         당신은 E1 Link 시스템의 AI 어시스턴트입니다.
@@ -39,6 +66,20 @@ def get_chatbot_response(message, context=""):
         - 팀: {st.session_state.get('team', '알 수 없음')}
         - 사용자: {st.session_state.get('user_id', '알 수 없음')}
         
+        사용자가 등록한 링크 정보:
+        {links_text}
+        
+        사용자가 다음과 같은 질문을 할 수 있습니다:
+        - "AIH 설비 링크를 모두 모아줘"
+        - "펌프 설비 모두 모아줘"
+        - "인천 지역 설비 모아줘"
+        - "~~ 탭의 링크 리스트 보여줘"
+        - "즐겨찾기한 링크들 보여줘"
+        
+        질문에 따라 적절한 링크들을 필터링하여 보여주세요.
+        링크 정보를 보여줄 때는 다음 형식을 사용하세요:
+        📌 [링크명](URL) [탭명] [⭐즐겨찾기] [설비정보]
+        
         {context}
         
         한국어로 친근하고 도움이 되는 답변을 제공해주세요.
@@ -46,10 +87,107 @@ def get_chatbot_response(message, context=""):
         
         full_prompt = f"{system_prompt}\n\n사용자 질문: {message}"
         response = model.generate_content(full_prompt)
-        return response.text
+        
+        # 응답 후처리 - 링크 정보 강화
+        processed_response = enhance_response_with_links(response.text, message, current_user_sites)
+        return processed_response
     
     except Exception as e:
         return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
+
+def enhance_response_with_links(response, user_message, user_sites):
+    """응답에 링크 정보를 추가로 강화"""
+    message_lower = user_message.lower()
+    
+    # 특정 키워드 기반 링크 필터링
+    if any(keyword in message_lower for keyword in ["aih", "설비"]):
+        aih_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if "aih.e1.co.kr" in link.get("url", ""):
+                    base = ""
+                    if "DS%7C" in link["url"]:
+                        base = "대산"
+                    elif "IC%7C" in link["url"]:
+                        base = "인천"
+                    elif "YS%7C" in link["url"]:
+                        base = "여수"
+                    
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    aih_links.append(f"📌 {link['description']} - {base}기지 {fav}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if aih_links:
+            response += f"\n\n🔧 **AIH 설비 링크 목록:**\n" + "\n\n".join(aih_links)
+    
+    # 지역별 필터링
+    if any(region in message_lower for region in ["대산", "인천", "여수"]):
+        region_map = {"대산": "DS%7C", "인천": "IC%7C", "여수": "YS%7C"}
+        target_region = None
+        for region, code in region_map.items():
+            if region in message_lower:
+                target_region = region
+                target_code = code
+                break
+        
+        if target_region:
+            region_links = []
+            for tab_name, tab_data in user_sites.items():
+                for link in tab_data.get("links", []):
+                    if target_code in link.get("url", ""):
+                        fav = "⭐" if link.get("favorite", False) else ""
+                        region_links.append(f"📌 {link['description']} {fav}\n   🔗 {link['url']} (탭: {tab_name})")
+            
+            if region_links:
+                response += f"\n\n🏭 **{target_region} 지역 설비 링크:**\n" + "\n\n".join(region_links)
+    
+    # 탭별 링크 조회
+    if "탭" in message_lower and ("링크" in message_lower or "리스트" in message_lower):
+        for tab_name in user_sites.keys():
+            if tab_name.lower() in message_lower or tab_name in message_lower:
+                tab_links = []
+                for link in user_sites[tab_name].get("links", []):
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
+                    tab_links.append(f"📌 {link['description']} {fav} {is_aih}\n   🔗 {link['url']}")
+                
+                if tab_links:
+                    response += f"\n\n📁 **{tab_name} 탭의 링크 목록:**\n" + "\n\n".join(tab_links)
+                break
+    
+    # 즐겨찾기 링크 조회
+    if "즐겨찾기" in message_lower:
+        favorite_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if link.get("favorite", False):
+                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
+                    favorite_links.append(f"📌 {link['description']} ⭐ {is_aih}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if favorite_links:
+            response += f"\n\n⭐ **즐겨찾기 링크 목록:**\n" + "\n\n".join(favorite_links)
+    
+    # 펌프 관련 링크 조회
+    if "펌프" in message_lower:
+        pump_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if "펌프" in link.get("description", "").lower() or "pump" in link.get("description", "").lower() or "p-" in link.get("description", "").lower():
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    base = ""
+                    if "aih.e1.co.kr" in link.get("url", ""):
+                        if "DS%7C" in link["url"]:
+                            base = "대산"
+                        elif "IC%7C" in link["url"]:
+                            base = "인천"
+                        elif "YS%7C" in link["url"]:
+                            base = "여수"
+                    
+                    pump_links.append(f"📌 {link['description']} {fav} {f'[{base}기지]' if base else ''}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if pump_links:
+            response += f"\n\n🔧 **펌프 설비 링크 목록:**\n" + "\n\n".join(pump_links)
+    
+    return response
 
 # ---- 페이지 설정 ----
 st.set_page_config(
@@ -1133,7 +1271,7 @@ elif st.session_state.current_page == "링크 바로가기":
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
 
-# 별도의 AI 어시스턴트 페이지 추가 (페이지 라우팅 부분에 추가)
+# AI 어시스턴트 페이지 (기존 코드 개선)
 elif st.session_state.current_page == "AI 어시스턴트":
     st.markdown("""
         <div class="main-header">
@@ -1142,11 +1280,47 @@ elif st.session_state.current_page == "AI 어시스턴트":
         </div>
     """, unsafe_allow_html=True)
     
+    # 사용 가능한 명령어 안내
+    with st.expander("💡 사용 가능한 질문 예시"):
+        st.markdown("""
+        **설비 관련 질문:**
+        - "AIH 설비 링크를 모두 모아줘"
+        - "펌프 설비 모두 모아줘"
+        - "인천 지역 설비 모아줘"
+        - "대산 기지 설비 보여줘"
+        
+        **탭 및 링크 관리:**
+        - "[탭명] 탭의 링크 리스트 보여줘"
+        - "즐겨찾기한 링크들 보여줘"
+        - "전체 링크 개수 알려줘"
+        
+        **시스템 사용법:**
+        - "링크 추가하는 방법 알려줘"
+        - "즐겨찾기 설정 방법은?"
+        - "탭 관리 방법 설명해줘"
+        """)
+    
     # 채팅 메시지 초기화
     if 'main_chat_messages' not in st.session_state:
         st.session_state.main_chat_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 궁금한 것이 있으시면 언제든 질문해주세요."}
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
         ]
+    
+    # 현재 사용자 통계 표시
+    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    total_aih_links = sum(
+        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
+        for tab_data in current_user_sites.values()
+    )
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("등록된 링크", total_links)
+    with col2:
+        st.metric("AIH 설비 링크", total_aih_links)
+    with col3:
+        st.metric("활성 탭", len(current_user_sites))
     
     # 채팅 영역
     chat_container = st.container()
@@ -1165,11 +1339,71 @@ elif st.session_state.current_page == "AI 어시스턴트":
             else:
                 st.markdown(f"""
                     <div style="display: flex; justify-content: flex-start; margin: 1rem 0;">
-                        <div style="background: #f3e5f5; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%;">
+                        <div style="background: #f3e5f5; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%; white-space: pre-line;">
                             <strong>🤖 AI:</strong> {msg["content"]}
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
+    
+    # 빠른 질문 버튼들
+    st.markdown("### 🚀 빠른 질문")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("AIH 설비 모아줘", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "AIH 설비 링크를 모두 모아줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("AIH 설비 링크를 모두 모아줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col2:
+        if st.button("즐겨찾기 보여줘", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "즐겨찾기한 링크들 보여줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("즐겨찾기한 링크들 보여줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col3:
+        if st.button("펌프 설비 찾기", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "펌프 설비 모두 모아줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("펌프 설비 모두 모아줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col4:
+        if st.button("전체 통계", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "전체 링크 통계 알려줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("전체 링크 통계 알려줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
     
     # 채팅 입력 영역
     st.markdown("---")
@@ -1179,7 +1413,7 @@ elif st.session_state.current_page == "AI 어시스턴트":
         user_input = st.text_input(
             "메시지를 입력하세요...", 
             key="main_chat_input",
-            placeholder="예: 링크를 즐겨찾기에 추가하는 방법을 알려주세요"
+            placeholder="예: 인천 지역 설비 모아줘"
         )
     
     with col2:
@@ -1194,7 +1428,9 @@ elif st.session_state.current_page == "AI 어시스턴트":
                 # 컨텍스트 정보 추가
                 context = f"""
                 현재 페이지: {st.session_state.get('current_page', '홈')}
-                사용자 탭 수: {len(st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {}))}
+                사용자 탭 수: {len(current_user_sites)}
+                총 링크 수: {total_links}
+                AIH 설비 링크 수: {total_aih_links}
                 """
                 
                 # AI 응답 생성
@@ -1212,10 +1448,9 @@ elif st.session_state.current_page == "AI 어시스턴트":
     with col3:
         if st.button("🗑️", key="main_clear_chat", help="채팅 내역 삭제"):
             st.session_state.main_chat_messages = [
-                {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 궁금한 것이 있으시면 언제든 질문해주세요."}
+                {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
             ]
             st.rerun()
-
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
     st.markdown("""
