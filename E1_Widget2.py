@@ -6,7 +6,7 @@ import zipfile
 import io
 import streamlit.components.v1 as components
 from datetime import datetime, timedelta
-from openai import OpenAI
+import openai
 
 # ---- 페이지 설정 ----
 st.set_page_config(
@@ -378,43 +378,6 @@ st.markdown("""
         .status-maintenance {
             background: #fef3c7;
             color: #92400e;
-
-        /* 챗봇 스타일 */
-        .chat-message {
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 10px;
-            max-width: 70%;
-        }
-        
-        .user-message {
-            background-color: #e3f2fd;
-            margin-left: auto;
-            text-align: right;
-        }
-        
-        .assistant-message {
-            background-color: #f5f5f5;
-            margin-right: auto;
-        }
-        
-        .quick-question-btn {
-            background: linear-gradient(45deg, #2196F3, #21CBF3);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 20px;
-            margin: 2px;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-        
-        .ai-widget {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 1rem;
-            border-radius: 10px;
-            margin: 1rem 0;
         }
     </style>
 """, unsafe_allow_html=True)
@@ -489,47 +452,39 @@ if "authenticated" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
 
-from openai import OpenAI
-
-# API 키 설정
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
+# ---- 챗봇 함수들 ----
 def get_ai_response(user_message, context=""):
-    """AI 챗봇 응답 생성 (OpenAI 1.0+ 방식)"""
+    """AI 챗봇 응답 생성"""
     try:
-        response = client.chat.completions.create(
+        # OpenAI GPT 사용 예시
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
-                {
-                    "role": "system",
-                    "content": f"""
-                    당신은 E1 회사의 AI 어시스턴트입니다. 
-                    주요 역할:
-                    1. 설비 관련 질문 답변 및 링크 제공
-                    2. 안전 가이드라인 제공
-                    3. 시스템 사용법 안내
-                    4. 링크 검색 및 추천
-                    
-                    현재 사용자 컨텍스트: {context}
-                    
-                    답변은 친근하고 전문적으로 해주세요.
-                    """
-                },
+                {"role": "system", "content": f"""
+                당신은 E1 회사의 AI 어시스턴트입니다. 
+                주요 역할:
+                1. 설비 관련 질문 답변 및 링크 제공
+                2. 안전 가이드라인 제공
+                3. 시스템 사용법 안내
+                4. 링크 검색 및 추천
+                
+                현재 사용자 컨텍스트: {context}
+                
+                답변은 친근하고 전문적으로 해주세요.
+                """},
                 {"role": "user", "content": user_message}
             ],
             max_tokens=500,
             temperature=0.7
         )
         return response.choices[0].message.content
-
     except Exception as e:
         return f"죄송합니다. 현재 AI 서비스에 문제가 있습니다. 오류: {str(e)}"
-
 
 def search_links_with_ai(query, current_sites):
     """AI를 활용한 스마트 링크 검색"""
     matching_links = []
-
+    
     # 기본 키워드 검색
     for tab_name, tab_data in current_sites.items():
         for link in tab_data["links"]:
@@ -540,9 +495,30 @@ def search_links_with_ai(query, current_sites):
                     'url': link['url'],
                     'favorite': link.get('favorite', False)
                 })
-
+    
     return matching_links
 
+def get_chatbot_suggestions(user_role, current_team):
+    """사용자 역할과 팀에 따른 챗봇 제안"""
+    suggestions = {
+        "기술운영팀": [
+            "설비 점검 일정은 어떻게 확인하나요?",
+            "AIH 시스템 사용법을 알려주세요",
+            "펌프 이상 시 대처 방법은?"
+        ],
+        "SHE지원팀": [
+            "안전 규정 최신 업데이트는?",
+            "사고 발생시 보고 절차는?",
+            "가스 누출 시 대응 방법은?"
+        ],
+        "기본": [
+            "링크를 어떻게 추가하나요?",
+            "즐겨찾기 설정 방법은?",
+            "시스템 사용법을 알려주세요"
+        ]
+    }
+    
+    return suggestions.get(current_team, suggestions["기본"])
 
 # ---- 데이터 관리 함수들 ----
 def save_sites(uid, team):
@@ -827,8 +803,8 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    # 네비게이션 메뉴에 챗봇 추가 (기존 코드 수정)
-    nav_options = ["🏠 홈", "🔗 링크 바로가기", "🤖 AI 어시스턴트", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
+    # 네비게이션 메뉴
+    nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
     if is_admin:
         nav_options.extend(["⚙️ 팀별 기본 탭 관리", "💾 데이터 백업 관리"])
     
@@ -1046,47 +1022,6 @@ if st.session_state.current_page == "홈":
                 </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("---")
-        
-        # AI 어시스턴트 퀵 액세스
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
-            st.markdown("### 🤖 AI 어시스턴트 미리보기")
-            
-            # 간단한 질문 입력
-            quick_question = st.text_input(
-                "빠른 질문하기", 
-                placeholder="예: 펌프 점검은 어떻게 하나요?",
-                key="home_quick_question"
-            )
-            
-            if st.button("질문하기") and quick_question:
-                with st.spinner("AI가 답변을 생성중입니다..."):
-                    user_context = f"팀: {current_team}, 사용자: {viewing_user_id}"
-                    response = get_ai_response(quick_question, user_context)
-                    
-                    st.markdown(f"""
-                        <div style="background-color: #f0f8ff; padding: 15px; border-radius: 10px; margin: 10px 0;">
-                            <strong>🤖 AI 답변:</strong><br>
-                            {response}
-                        </div>
-                    """, unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("### 🎯 인기 질문")
-            popular_questions = [
-                "설비 점검 방법",
-                "안전 규정 확인",
-                "링크 관리 방법",
-                "시스템 사용법"
-            ]
-            
-            for question in popular_questions:
-                if st.button(f"• {question}", key=f"popular_{question}"):
-                    st.session_state.current_page = "AI 어시스턴트"
-                    st.rerun()
-
 elif st.session_state.current_page == "링크 바로가기":
     # ---- 링크 관리 페이지 ----
     st.markdown("""
@@ -1223,109 +1158,6 @@ elif st.session_state.current_page == "링크 바로가기":
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
 
-# 챗봇 페이지 라우팅 추가
-elif st.session_state.current_page == "AI 어시스턴트":
-    # ---- AI 챗봇 페이지 ----
-    st.markdown("""
-        <div class="main-header">
-            <h1>🤖 AI 어시스턴트</h1>
-            <p>E1 전용 AI 어시스턴트 - 설비, 안전, 시스템 관련 질문을 해보세요</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 챗봇 세션 초기화
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = []
-    
-    # 사용자 컨텍스트 생성
-    user_context = f"팀: {current_team}, 사용자: {viewing_user_id}"
-    
-    # 채팅 인터페이스
-    st.markdown("### 💬 채팅")
-    
-    # 채팅 히스토리 표시
-    chat_container = st.container()
-    with chat_container:
-        for message in st.session_state.chat_messages:
-            if message["role"] == "user":
-                st.markdown(f"""
-                    <div style="text-align: right; margin: 10px 0;">
-                        <div style="background-color: #e3f2fd; padding: 10px; border-radius: 10px; 
-                                    display: inline-block; max-width: 70%; margin-left: 30%;">
-                            👤 {message["content"]}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                    <div style="text-align: left; margin: 10px 0;">
-                        <div style="background-color: #f5f5f5; padding: 10px; border-radius: 10px; 
-                                    display: inline-block; max-width: 70%; margin-right: 30%;">
-                            🤖 {message["content"]}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-    
-    # 채팅 입력
-    col1, col2 = st.columns([6, 1])
-    with col1:
-        user_input = st.text_input("메시지를 입력하세요...", key="chat_input", placeholder="예: 설비 점검은 어떻게 하나요?")
-    with col2:
-        send_button = st.button("전송", key="send_message")
-    
-    # 메시지 전송 처리
-    if send_button and user_input:
-        # 사용자 메시지 추가
-        st.session_state.chat_messages.append({"role": "user", "content": user_input})
-        
-        # 링크 검색이 포함된 질문인지 확인
-        if "링크" in user_input or "찾아" in user_input or "검색" in user_input:
-            matching_links = search_links_with_ai(user_input, current_sites)
-            if matching_links:
-                response = "관련 링크를 찾았습니다:\n\n"
-                for link in matching_links[:5]:  # 최대 5개만 표시
-                    star = "⭐ " if link['favorite'] else ""
-                    response += f"{star}[{link['title']}]({link['url']}) ({link['tab']})\n"
-                response += "\n추가 질문이 있으시면 언제든 말씀해주세요!"
-            else:
-                response = get_ai_response(user_input, user_context)
-        else:
-            response = get_ai_response(user_input, user_context)
-        
-        # AI 응답 추가
-        st.session_state.chat_messages.append({"role": "assistant", "content": response})
-        st.rerun()
-    
-    # 채팅 기록 초기화
-    if st.button("🗑️ 채팅 기록 초기화", key="clear_chat"):
-        st.session_state.chat_messages = []
-        st.rerun()
-    
-    # 기능 안내
-    with st.expander("🔧 AI 어시스턴트 기능", expanded=False):
-        st.markdown("""
-        **AI 어시스턴트가 도움을 드릴 수 있는 영역:**
-        
-        🔧 **설비 관리**
-        - 설비 점검 방법 및 일정
-        - 이상 상황 대처 방법
-        - 예방 정비 가이드
-        
-        🛡️ **안전 관리**
-        - 안전 규정 및 절차
-        - 사고 발생시 대응 방법
-        - 개인보호장비 사용법
-        
-        💻 **시스템 사용**
-        - E1 Link 사용법
-        - 링크 관리 방법
-        - 기능 설명
-        
-        🔍 **링크 검색**
-        - "○○ 링크 찾아줘"
-        - "××× 관련 사이트 있어?"
-        - 스마트 링크 추천
-        """)
 
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
