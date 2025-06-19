@@ -1,4 +1,2 @@
 streamlit
-requests
-transformers
-torch
+google-generativeai streamlit-chat
