@@ -1345,6 +1345,66 @@ elif st.session_state.current_page == "AI 어시스턴트":
                     </div>
                 """, unsafe_allow_html=True)
             st.rerun()
+
+    # 빠른 질문 버튼들
+    st.markdown("### 🚀 빠른 질문")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("AIH 설비 모아줘", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "AIH 설비 링크를 모두 모아줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("AIH 설비 링크를 모두 모아줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col2:
+        if st.button("즐겨찾기 보여줘", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "즐겨찾기한 링크들 보여줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("즐겨찾기한 링크들 보여줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col3:
+        if st.button("펌프 설비 찾기", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "펌프 설비 모두 모아줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("펌프 설비 모두 모아줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
+    
+    with col4:
+        if st.button("전체 통계", use_container_width=True):
+            st.session_state.main_chat_messages.append({
+                "role": "user", 
+                "content": "전체 링크 통계 알려줘"
+            })
+            with st.spinner("AI가 답변을 생성하고 있습니다..."):
+                bot_response = get_chatbot_response("전체 링크 통계 알려줘", "")
+            st.session_state.main_chat_messages.append({
+                "role": "assistant", 
+                "content": bot_response
+            })
+            st.rerun()
     
     # 채팅 입력 영역
     st.markdown("---")
