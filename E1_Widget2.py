@@ -1344,8 +1344,7 @@ elif st.session_state.current_page == "AI 어시스턴트":
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
-            st.rerun()
-
+    
     # 빠른 질문 버튼들
     st.markdown("### 🚀 빠른 질문")
     col1, col2, col3, col4 = st.columns(4)
