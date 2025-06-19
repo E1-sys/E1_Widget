@@ -492,7 +492,7 @@ if "current_page" not in st.session_state:
 from openai import OpenAI
 
 # API 키 설정
-client = OpenAI(api_key=api_key)
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 def get_ai_response(user_message, context=""):
     """AI 챗봇 응답 생성 (OpenAI 1.0+ 방식)"""
