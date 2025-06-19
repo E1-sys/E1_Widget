@@ -1352,6 +1352,7 @@ elif st.session_state.current_page == "AI 어시스턴트":
     
     with col1:
         user_input = st.text_input(
+            "메시지를 입력하세요...", 
             key="main_chat_input",
             placeholder="예: 인천 지역 설비 모아줘"
         )
