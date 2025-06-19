@@ -39,9 +39,9 @@ def call_ai_chatbot(message):
         elif response.status_code == 503:
             return "🔄 AI 모델이 준비 중입니다. 잠시 후 다시 시도해주세요."
         else:
-            return "⚠️ 일시적인 오류가 발생했습니다."
+            return f"⚠️ 오류 코드 {response.status_code}: {response.text}"
     except Exception as e:
-        return "❌ 연결 오류가 발생했습니다."
+        return f"❌ 연결 오류: {str(e)}"
 
 # ---- 페이지 설정 ----
 st.set_page_config(
