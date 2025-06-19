@@ -787,6 +787,12 @@ with st.sidebar:
                     delete_tab(tab_to_delete)
                     st.success(f"'{tab_to_delete}' 탭이 삭제되었습니다.")
                     st.rerun()
+        st.markdown("---")
+        # 사이드바에 검색 기능 추가
+        with st.sidebar:
+            st.markdown("### 🔍 링크 검색")
+            search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
+            show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     
     if st.button("🚪 로그아웃", use_container_width=True):
         st.session_state.authenticated = False
@@ -844,11 +850,6 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
-    # 사이드바에 검색 기능 추가
-    with st.sidebar:
-        st.markdown("### 🔍 링크 검색")
-        search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
-        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     # ---- 대시보드 페이지 ----
     st.markdown("""
         <div class="main-header">
@@ -959,14 +960,6 @@ elif st.session_state.current_page == "링크 바로가기":
             <p>팀별 포털 및 시스템 링크 관리</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # 사이드바에 검색 기능 추가
-    with st.sidebar:
-        st.markdown("### 🔍 링크 검색")
-        search_query = st.text_input("검색어 입력", placeholder="링크 제목 또는 URL로 검색...", key="global_search")
-        show_favorites_only = st.checkbox("⭐ 즐겨찾기만 보기", key="global_favorites")
     
     # 탭이 있는 경우에만 탭 표시
     if current_sites:
