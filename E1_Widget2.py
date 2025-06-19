@@ -489,41 +489,47 @@ if "authenticated" not in st.session_state:
 if "current_page" not in st.session_state:
     st.session_state.current_page = "홈"
 
+from openai import OpenAI
+
+# API 키 설정
+client = OpenAI(api_key=api_key)
+
 def get_ai_response(user_message, context=""):
-    """AI 챗봇 응답 생성"""
+    """AI 챗봇 응답 생성 (OpenAI 1.0+ 방식)"""
     try:
-        # OpenAI 클라이언트 생성 (1.0+ 방식)
-        client = OpenAI(api_key=api_key)
-        
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": f"""
-                당신은 E1 회사의 AI 어시스턴트입니다. 
-                주요 역할:
-                1. 설비 관련 질문 답변 및 링크 제공
-                2. 안전 가이드라인 제공
-                3. 시스템 사용법 안내
-                4. 링크 검색 및 추천
-                
-                현재 사용자 컨텍스트: {context}
-                
-                답변은 친근하고 전문적으로 해주세요.
-                """},
+                {
+                    "role": "system",
+                    "content": f"""
+                    당신은 E1 회사의 AI 어시스턴트입니다. 
+                    주요 역할:
+                    1. 설비 관련 질문 답변 및 링크 제공
+                    2. 안전 가이드라인 제공
+                    3. 시스템 사용법 안내
+                    4. 링크 검색 및 추천
+                    
+                    현재 사용자 컨텍스트: {context}
+                    
+                    답변은 친근하고 전문적으로 해주세요.
+                    """
+                },
                 {"role": "user", "content": user_message}
             ],
             max_tokens=500,
             temperature=0.7
         )
         return response.choices[0].message.content
-        
+
     except Exception as e:
         return f"죄송합니다. 현재 AI 서비스에 문제가 있습니다. 오류: {str(e)}"
+
 
 def search_links_with_ai(query, current_sites):
     """AI를 활용한 스마트 링크 검색"""
     matching_links = []
-    
+
     # 기본 키워드 검색
     for tab_name, tab_data in current_sites.items():
         for link in tab_data["links"]:
@@ -534,8 +540,9 @@ def search_links_with_ai(query, current_sites):
                     'url': link['url'],
                     'favorite': link.get('favorite', False)
                 })
-    
+
     return matching_links
+
 
 # ---- 데이터 관리 함수들 ----
 def save_sites(uid, team):
