@@ -16,34 +16,40 @@ import time
 HUGGINGFACE_MODEL_URL = "https://router.huggingface.co/featherless-ai/v1/completions"
 
 def call_ai_chatbot(message):
-    """AI 챗봇 호출 (Hugging Face API 사용)"""
+    """AI 챗봇 호출 (Hugging Face API - prompt 기반 모델 예: OpenChat, Mistral 등)"""
     headers = {
         "Authorization": f"Bearer {st.secrets['HUGGINGFACE_API_KEY']}",
         "Content-Type": "application/json"
     }
-    
+
     payload = {
-        "inputs": message,
-        "parameters": {
-            "max_length": 100,
-            "temperature": 0.7
-        }
+        "prompt": message,
+        "max_tokens": 200,
+        "temperature": 0.7
     }
-    
+
     try:
         response = requests.post(HUGGINGFACE_MODEL_URL, headers=headers, json=payload)
+
         if response.status_code == 200:
             result = response.json()
-            if isinstance(result, list) and len(result) > 0:
+            # 모델에 따라 text or choices[0]['text'] 사용
+            if isinstance(result, dict):
+                return result.get("text", "죄송합니다. 응답을 생성할 수 없습니다.")
+            elif isinstance(result, list):
                 return result[0].get("generated_text", "죄송합니다. 응답을 생성할 수 없습니다.")
             else:
-                return "죄송합니다. 응답을 생성할 수 없습니다."
+                return "⚠️ 알 수 없는 응답 형식입니다."
+        
         elif response.status_code == 503:
             return "🔄 AI 모델이 준비 중입니다. 잠시 후 다시 시도해주세요."
+        
         else:
             return f"⚠️ 오류 코드 {response.status_code}: {response.text}"
+    
     except Exception as e:
         return f"❌ 연결 오류: {str(e)}"
+
 
 # ---- 페이지 설정 ----
 st.set_page_config(
