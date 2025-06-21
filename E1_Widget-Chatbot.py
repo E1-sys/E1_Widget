@@ -1638,7 +1638,6 @@ else:
 
 # ---- 사이드바 네비게이션 ----
 with st.sidebar:
-    render_floating_chatbot()
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%); 
                     color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
