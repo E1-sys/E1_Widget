@@ -20,7 +20,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import re
-from streamlit_float import float_parent, float_box
 
 # ---- 페이지 설정 ----
 st.set_page_config(
@@ -309,7 +308,7 @@ st.markdown("""
         }
         
         /* 플로팅 챗봇 아이콘 */
-            .floating-chatbot-icon {
+        .floating-chatbot-icon {
             width: 60px;
             height: 60px;
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
@@ -323,8 +322,6 @@ st.markdown("""
             box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
             transition: all 0.3s ease;
             animation: pulse 2s infinite;
-            border: none;
-            outline: none;
         }
         
         .floating-chatbot-icon:hover {
@@ -421,6 +418,11 @@ st.markdown("""
         
         /* 모바일 반응형 */
         @media (max-width: 768px) {
+            .floating-chatbot-container {
+                bottom: 20px;
+                right: 20px;
+            }
+            
             .floating-chatbot-icon {
                 width: 50px;
                 height: 50px;
@@ -454,13 +456,8 @@ st.markdown("""
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-@st.dialog("💬 AI 어시스턴트", width="large")
-def chatbot_dialog():
-    """챗봇 다이얼로그"""
-    render_chatbot_content()
-
 def render_floating_chatbot():
-    """플로팅 챗봇 UI 렌더링 - Dialog 방식 (권장)"""
+    """플로팅 챗봇 UI 렌더링"""
     
     # 챗봇 세션 상태 초기화
     if 'chatbot_messages' not in st.session_state:
@@ -468,51 +465,23 @@ def render_floating_chatbot():
             {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
         ]
     
-    # Float container 생성 - 좌하단에 고정
-    float_parent(css="""
-    .floating-parent {
-        position: fixed !important;
-        bottom: 20px !important;
-        left: 20px !important;
-        z-index: 999 !important;
-    }
-    """)
+    if 'chatbot_input' not in st.session_state:
+        st.session_state.chatbot_input = ""
     
-    # 플로팅 챗봇 아이콘
-    float_box("")
-    # 커스텀 스타일 적용된 버튼
-    if st.button("", key="floating_chatbot_btn", 
-                help="AI 어시스턴트", 
-                use_container_width=False):
-        chatbot_dialog()
+    # 플로팅 챗봇 버튼과 팝오버
+    with st.container():
+        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
+        components.html("""
+            <div class="floating-chatbot-container">
+                <div class="floating-chatbot-icon" id="chatbot-trigger">
+                    🤖
+                </div>
+            </div>
+        """, height=0)
         
-        # 버튼에 아이콘 및 스타일 적용
-        st.markdown("""
-        <script>
-        const btn = window.parent.document.querySelector('[data-testid="baseButton-secondary"]:last-child');
-        if (btn) {
-            btn.innerHTML = '🤖';
-            btn.className = 'floating-chatbot-icon';
-            btn.style.cssText = `
-                width: 60px !important;
-                height: 60px !important;
-                background: linear-gradient(135deg, #d97706 0%, #ea580c 100%) !important;
-                border-radius: 50% !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                font-size: 1.5rem !important;
-                color: white !important;
-                cursor: pointer !important;
-                box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4) !important;
-                transition: all 0.3s ease !important;
-                border: none !important;
-                outline: none !important;
-                animation: pulse 2s infinite !important;
-            `;
-        }
-        </script>
-        """, unsafe_allow_html=True)
+        # 팝오버를 사용한 챗봇 창
+        with st.popover("💬 AI 어시스턴트", use_container_width=False):
+            render_chatbot_content()
 
 def render_chatbot_content():
     """챗봇 팝오버 내용 렌더링"""
