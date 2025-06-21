@@ -1579,7 +1579,7 @@ if st.session_state.current_page == "홈":
                 </div>
             """, unsafe_allow_html=True)
 
-        render_floating_chatbot()
+    render_floating_chatbot()
 
 elif st.session_state.current_page == "링크 바로가기":
     # ---- 링크 관리 페이지 ----
