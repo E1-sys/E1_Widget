@@ -699,8 +699,8 @@ def get_chatbot_response(message, context=""):
         {web_content_info if web_content_info else ""}
         
         답변 규칙:
-        1. 간결하고 핵심적인 답변 제공 (최대 3-4줄)
-        2. 설비 정보 요청시 웹에서 수집한 정보 활용
+        1. 간결하고 핵심적인 답변 제공 (최대 6-7줄)
+        2. 설비 정보 요청시 해당 링크의 URL에서 스크래핑한 정보 활용
         3. 링크 추천시 사용자의 등록된 링크 중에서 제안
         4. 친근하고 도움이 되는 톤 유지
         5. 이모지 적절히 활용
@@ -732,7 +732,7 @@ def get_chatbot_response(message, context=""):
         response = model.generate_content(
             full_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=500,
+                max_output_tokens=1000,
                 temperature=0.7
             )
         )
