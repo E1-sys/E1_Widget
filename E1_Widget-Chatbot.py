@@ -305,7 +305,7 @@ def render_floating_chatbot_css():
         .floating-chatbot {
             position: fixed;
             bottom: 30px;
-            right: 30px;
+            left: 30px;
             width: 60px;
             height: 60px;
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
@@ -335,7 +335,7 @@ def render_floating_chatbot_css():
         .chatbot-popup {
             position: fixed;
             bottom: 100px;
-            right: 30px;
+            left: 30px;
             width: 380px;
             height: 500px;
             background: white;
@@ -508,7 +508,7 @@ def render_floating_chatbot_css():
         @media (max-width: 768px) {
             .floating-chatbot {
                 bottom: 20px;
-                right: 20px;
+                left: 20px;
                 width: 50px;
                 height: 50px;
                 font-size: 1.3rem;
@@ -516,7 +516,7 @@ def render_floating_chatbot_css():
             
             .chatbot-popup {
                 bottom: 80px;
-                right: 20px;
+                left: 20px;
                 left: 20px;
                 width: auto;
                 height: 400px;
