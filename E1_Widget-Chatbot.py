@@ -456,33 +456,6 @@ st.markdown("""
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def render_floating_chatbot():
-    """플로팅 챗봇 UI 렌더링"""
-    
-    # 챗봇 세션 상태 초기화
-    if 'chatbot_messages' not in st.session_state:
-        st.session_state.chatbot_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-        ]
-    
-    if 'chatbot_input' not in st.session_state:
-        st.session_state.chatbot_input = ""
-    
-    # 플로팅 챗봇 버튼과 팝오버
-    with st.container():
-        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
-        components.html("""
-            <div class="floating-chatbot-container">
-                <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    🤖
-                </div>
-            </div>
-        """, height=0)
-        
-        # 팝오버를 사용한 챗봇 창
-        with st.popover("💬 AI 어시스턴트", use_container_width=False):
-            render_chatbot_content()
-
 def render_chatbot_content():
     """챗봇 팝오버 내용 렌더링"""
     
@@ -497,8 +470,19 @@ def render_chatbot_content():
     with st.container():
         st.markdown('<div class="chatbot-messages-container">', unsafe_allow_html=True)
         
+        # 현재 사용자별 메시지 가져오기
+        viewing_user_id = st.session_state.get("viewing_user_id", "default")
+        current_team = st.session_state.get("team", "default")
+        user_key = f"chatbot_messages_{viewing_user_id}_{current_team}"
+        
+        # 사용자별 메시지 초기화
+        if user_key not in st.session_state:
+            st.session_state[user_key] = [
+                {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+            ]
+        
         # 메시지 표시
-        for idx, msg in enumerate(st.session_state.chatbot_messages):
+        for idx, msg in enumerate(st.session_state[user_key]):
             if msg["role"] == "user":
                 st.markdown(f"""
                     <div class="chat-message user-message">
@@ -520,28 +504,37 @@ def render_chatbot_content():
     
     st.markdown("---")
     
-    # 입력 영역
+    # 입력 영역 개선 (엔터 전송, 입력창 초기화)
     col1, col2 = st.columns([4, 1])
     
+    # 입력창 초기화를 위한 키 생성
+    input_key = f"chatbot_input_{viewing_user_id}_{current_team}"
+    
     with col1:
-        user_input = st.text_input(
-            "메시지 입력...", 
-            key="chatbot_input_field",
-            placeholder="예: 인천 지역 설비 모아줘",
-            label_visibility="collapsed"
-        )
+        # form을 사용하여 엔터 키 전송 지원
+        with st.form(key=f"chat_form_{viewing_user_id}_{current_team}", clear_on_submit=True):
+            user_input = st.text_input(
+                "메시지 입력...", 
+                placeholder="예: 인천 지역 설비 모아줘",
+                label_visibility="collapsed",
+                key=f"chat_input_{viewing_user_id}_{current_team}"
+            )
+            
+            # 숨겨진 submit 버튼 (엔터키로 전송)
+            form_submit = st.form_submit_button("전송", use_container_width=True)
     
     with col2:
-        send_button = st.button("전송", key="chatbot_send", use_container_width=True)
+        # 별도 전송 버튼
+        send_button = st.button("전송", key=f"chatbot_send_{viewing_user_id}_{current_team}", use_container_width=True)
     
-    # 전송 버튼 클릭 또는 엔터 시 처리
-    if send_button and user_input.strip():
+    # 전송 처리 (form 제출 또는 버튼 클릭)
+    if (form_submit or send_button) and user_input and user_input.strip():
         handle_chatbot_message(user_input.strip())
         st.rerun()
     
     # 채팅 내역 삭제 버튼
-    if st.button("🗑️ 채팅 내역 삭제", key="chatbot_clear"):
-        st.session_state.chatbot_messages = [
+    if st.button("🗑️ 채팅 내역 삭제", key=f"chatbot_clear_{viewing_user_id}_{current_team}"):
+        st.session_state[user_key] = [
             {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
         ]
         st.rerun()
@@ -562,6 +555,32 @@ def render_chatbot_content():
         - "링크 추가 방법은?"
         - "즐겨찾기 설정 방법은?"
         """)
+
+def render_floating_chatbot():
+    """플로팅 챗봇 UI 렌더링 - 사용자별 세션 관리 추가"""
+    
+    # 전역 챗봇 메시지 상태 제거 (사용자별로 관리하므로)
+    # 기존 chatbot_messages는 더 이상 사용하지 않음
+    if 'chatbot_messages' in st.session_state:
+        del st.session_state['chatbot_messages']
+    
+    if 'chatbot_input' in st.session_state:
+        del st.session_state['chatbot_input']
+    
+    # 플로팅 챗봇 버튼과 팝오버
+    with st.container():
+        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
+        components.html("""
+            <div class="floating-chatbot-container">
+                <div class="floating-chatbot-icon" id="chatbot-trigger">
+                    🤖
+                </div>
+            </div>
+        """, height=0)
+        
+        # 팝오버를 사용한 챗봇 창
+        with st.popover("💬 AI 어시스턴트", use_container_width=False):
+            render_chatbot_content()
 
 def handle_chatbot_message(user_input):
     """챗봇 메시지 처리"""
@@ -604,9 +623,173 @@ def handle_chatbot_message(user_input):
     # 입력 필드 초기화
     st.session_state.chatbot_input = ""
 
+def manage_chat_history(user_key, max_conversations=3):
+    """
+    사용자별 채팅 내역 관리 (최대 3번의 대화 유지)
+    
+    Args:
+        user_key: 사용자별 고유 키
+        max_conversations: 유지할 최대 대화 수 (기본 3)
+    """
+    if user_key not in st.session_state:
+        return
+    
+    messages = st.session_state[user_key]
+    
+    # 시스템 메시지는 제외하고 사용자-어시스턴트 대화만 카운트
+    conversation_count = 0
+    system_messages = []
+    user_assistant_pairs = []
+    
+    # 메시지 분류
+    for msg in messages:
+        if msg["role"] == "assistant" and "안녕하세요! E1 Link AI 어시스턴트입니다" in msg["content"]:
+            # 시스템 초기 메시지
+            system_messages.append(msg)
+        else:
+            user_assistant_pairs.append(msg)
+    
+    # 대화 쌍 계산 (user + assistant = 1 대화)
+    conversation_pairs = []
+    temp_pair = []
+    
+    for msg in user_assistant_pairs:
+        temp_pair.append(msg)
+        if len(temp_pair) == 2:  # user + assistant
+            conversation_pairs.append(temp_pair)
+            temp_pair = []
+    
+    # 마지막 미완성 대화가 있다면 추가
+    if temp_pair:
+        conversation_pairs.append(temp_pair)
+    
+    # 최대 대화 수 초과 시 오래된 대화 삭제
+    if len(conversation_pairs) > max_conversations:
+        # 가장 오래된 대화부터 삭제
+        conversations_to_keep = conversation_pairs[-max_conversations:]
+        
+        # 새로운 메시지 리스트 구성
+        new_messages = system_messages.copy()
+        for pair in conversations_to_keep:
+            new_messages.extend(pair)
+        
+        st.session_state[user_key] = new_messages
+        
+        return len(conversation_pairs) - max_conversations  # 삭제된 대화 수 반환
+    
+    return 0
+
+def handle_chatbot_message(user_input):
+    """챗봇 메시지 처리 - 사용자별 관리 및 대화 내역 최적화"""
+    # 현재 사용자 정보 가져오기
+    viewing_user_id = st.session_state.get("viewing_user_id", "default")
+    current_team = st.session_state.get("team", "default")
+    user_key = f"chatbot_messages_{viewing_user_id}_{current_team}"
+    
+    # 사용자별 메시지 초기화
+    if user_key not in st.session_state:
+        st.session_state[user_key] = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+        ]
+    
+    # 사용자 메시지 추가
+    st.session_state[user_key].append({
+        "role": "user", 
+        "content": user_input
+    })
+    
+    # 현재 사용자 정보 수집
+    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    total_aih_links = sum(
+        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
+        for tab_data in current_user_sites.values()
+    )
+    
+    # 컨텍스트 정보 추가
+    context = f"""
+    현재 페이지: {st.session_state.get('current_page', '홈')}
+    사용자 탭 수: {len(current_user_sites)}
+    총 링크 수: {total_links}
+    AIH 설비 링크 수: {total_aih_links}
+    """
+    
+    # AI 응답 생성
+    try:
+        bot_response = get_chatbot_response(user_input, context, user_key)
+    except Exception as e:
+        bot_response = f"죄송합니다. 일시적인 오류가 발생했습니다: {str(e)[:100]}..."
+    
+    # 봇 응답 추가
+    st.session_state[user_key].append({
+        "role": "assistant", 
+        "content": bot_response
+    })
+    
+    # 대화 내역 관리 (3회 초과 시 자동 삭제)
+    deleted_count = manage_chat_history(user_key, max_conversations=3)
+    
+    # 삭제된 대화가 있다면 사용자에게 알림 (선택사항)
+    if deleted_count > 0:
+        st.session_state[user_key].append({
+            "role": "assistant", 
+            "content": f"💡 대화 최적화를 위해 {deleted_count}개의 이전 대화를 정리했습니다."
+        })
+
+def get_user_chat_context(user_key, max_context_messages=6):
+    """
+    사용자별 채팅 컨텍스트 생성
+    
+    Args:
+        user_key: 사용자별 고유 키
+        max_context_messages: 컨텍스트로 사용할 최대 메시지 수 (기본 6개 = 3대화)
+    
+    Returns:
+        list: 컨텍스트용 메시지 리스트
+    """
+    if user_key not in st.session_state:
+        return []
+    
+    messages = st.session_state[user_key]
+    
+    # 시스템 메시지 제외하고 최근 대화만 가져오기
+    context_messages = []
+    recent_messages = []
+    
+    for msg in messages:
+        if not (msg["role"] == "assistant" and "안녕하세요! E1 Link AI 어시스턴트입니다" in msg["content"]):
+            recent_messages.append(msg)
+    
+    # 최근 메시지만 컨텍스트로 사용 (성능 최적화)
+    context_messages = recent_messages[-max_context_messages:] if recent_messages else []
+    
+    return context_messages
+
+def cleanup_old_user_sessions():
+    """
+    오래된 사용자 세션 정리 (메모리 최적화)
+    현재 사용자가 아닌 세션 데이터 정리
+    """
+    current_viewing_user = st.session_state.get("viewing_user_id", "default")
+    current_team = st.session_state.get("team", "default")
+    current_user_key = f"chatbot_messages_{current_viewing_user}_{current_team}"
+    
+    # 챗봇 메시지 키 찾기
+    keys_to_remove = []
+    for key in st.session_state.keys():
+        if key.startswith("chatbot_messages_") and key != current_user_key:
+            keys_to_remove.append(key)
+    
+    # 최대 5개 사용자 세션만 유지 (메모리 관리)
+    if len(keys_to_remove) > 5:
+        # 가장 오래된 세션부터 삭제
+        keys_to_remove.sort()
+        for key in keys_to_remove[:-5]:
+            del st.session_state[key]
+
 # 기존 챗봇 함수들을 플로팅 챗봇에 맞게 수정
-def get_chatbot_response(message, context=""):
-    """챗봇 응답 생성 (플로팅 챗봇용으로 수정)"""
+def get_chatbot_response(message, context="", user_key=None):
+    """챗봇 응답 생성 (개선된 버전 - 사용자별 컨텍스트 관리)"""
     model = init_chatbot()
     if not model:
         return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
@@ -621,13 +804,16 @@ def get_chatbot_response(message, context=""):
         equipment_info_request = False
         equipment_name = None
         
-        # 설비 정보 요청 패턴 확인
+        # 설비 정보 요청 패턴 확인 (확장)
         info_patterns = [
             r'(.+?)\s*제원\s*알려줘',
             r'(.+?)\s*정보\s*알려줘',
             r'(.+?)\s*사양\s*알려줘',
             r'(.+?)\s*규격\s*알려줘',
             r'(.+?)\s*데이터\s*보여줘',
+            r'(.+?)\s*스펙\s*알려줘',
+            r'(.+?)\s*내용\s*보여줘',
+            r'(.+?)\s*(에|의)\s*(대해|관해)\s*알려줘',
         ]
         
         for pattern in info_patterns:
@@ -637,27 +823,27 @@ def get_chatbot_response(message, context=""):
                 equipment_info_request = True
                 break
         
-        # 웹 스크래핑을 통한 설비 정보 수집
+        # 웹 스크래핑을 통한 정보 수집 (설비 외 일반 정보도 포함)
         web_content_info = ""
         if equipment_info_request and equipment_name:
             # 관련 링크 찾기
             found_links = find_equipment_link(equipment_name, current_user_sites)
             
             if found_links:
-                # 플로팅 챗봇에서는 스피너 대신 간단한 메시지
                 web_content_info += f"\n🔍 {equipment_name} 관련 정보를 검색 중...\n"
                 
-                for i, link_info in enumerate(found_links[:2]):  # 최대 2개 링크만 확인 (속도 향상)
-                    html_content = fetch_web_content(link_info['url'])
+                for i, link_info in enumerate(found_links[:2]):  # 최대 2개 링크만 확인
+                    html_content = fetch_web_content_enhanced(link_info['url'])
                     
                     if not html_content.startswith("⚠️"):  # 오류가 아닌 경우
-                        extracted_info = extract_equipment_info(html_content, equipment_name)
+                        # 설비 정보 뿐만 아니라 일반 정보도 추출
+                        extracted_info = extract_comprehensive_info(html_content, equipment_name)
                         if extracted_info:
                             web_content_info += f"\n📋 **{link_info['description']}에서 수집한 정보:**\n{extracted_info}\n"
                     else:
                         web_content_info += f"\n⚠️ {link_info['description']}: 정보 수집 실패\n"
                     
-                    time.sleep(0.5)  # 서버 부하 방지 (단축)
+                    time.sleep(0.3)  # 서버 부하 방지
             else:
                 web_content_info = f"\n⚠️ '{equipment_name}'과 관련된 링크를 찾을 수 없습니다."
         
@@ -685,7 +871,7 @@ def get_chatbot_response(message, context=""):
         
         links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
         
-        # 시스템 프롬프트 설정 (플로팅 챗봇용 - 더 간결하게)
+        # 시스템 프롬프트 설정 (개선된 버전)
         system_prompt = f"""
         당신은 E1 Link 시스템의 AI 어시스턴트입니다. 간결하고 친근한 답변을 제공하세요.
         
@@ -699,40 +885,39 @@ def get_chatbot_response(message, context=""):
         {web_content_info if web_content_info else ""}
         
         답변 규칙:
-        1. 간결하고 핵심적인 답변 제공 (최대 6-7줄)
-        2. 설비 정보 요청시 해당 링크의 URL에서 스크래핑한 정보 활용
-        3. 링크 추천시 사용자의 등록된 링크 중에서 제안
-        4. 친근하고 도움이 되는 톤 유지
-        5. 이모지 적절히 활용
+        1. 간결하고 핵심적인 답변 제공 (최대 8-10줄)
+        2. 정보 요청시 해당 링크의 URL에서 스크래핑한 정보 활용
+        3. 설비 정보, 일반 정보, 문서 내용 등 다양한 정보 제공 가능
+        4. 링크 추천시 사용자의 등록된 링크 중에서 제안
+        5. 친근하고 도움이 되는 톤 유지
+        6. 이모지 적절히 활용
+        7. 스크래핑된 정보가 있다면 우선적으로 활용
         """
         
-        # 대화 히스토리 구성 (플로팅 챗봇용 - 최근 3개 대화만)
+        # 사용자별 대화 히스토리 구성
         conversation_history = []
-        chat_history = st.session_state.get("floating_chat_history", [])
-        
-        # 최근 3개 대화만 컨텍스트로 사용 (성능 최적화)
-        for chat in chat_history[-6:]:  # 최근 3개 질문-답변 쌍
-            if chat["role"] == "user":
-                conversation_history.append({"role": "user", "content": chat["content"]})
-            else:
-                conversation_history.append({"role": "assistant", "content": chat["content"]})
+        if user_key:
+            chat_context = get_user_chat_context(user_key, max_context_messages=6)
+            conversation_history = chat_context
         
         # 현재 메시지 추가
         conversation_history.append({"role": "user", "content": message})
         
-        # AI 응답 생성
-        messages = [
-            {"role": "system", "content": system_prompt}
-        ] + conversation_history
-
+        # 프롬프트 구성
+        context_text = ""
+        if conversation_history:
+            context_text = "\n\n최근 대화 내역:\n"
+            for msg in conversation_history[-4:]:  # 최근 2개 대화만
+                role_name = "사용자" if msg["role"] == "user" else "어시스턴트"
+                context_text += f"{role_name}: {msg['content']}\n"
         
-        full_prompt = system_prompt + f"\n\n사용자 질문: {message}\n\n답변:"
+        full_prompt = system_prompt + context_text + f"\n\n현재 사용자 질문: {message}\n\n답변:"
         
         # Gemini API 호출
         response = model.generate_content(
             full_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=1000,
+                max_output_tokens=1200,
                 temperature=0.7
             )
         )
@@ -757,10 +942,43 @@ def get_chatbot_response(message, context=""):
         
         return "🤖 응답을 생성할 수 없습니다. 다시 시도해주세요."
         
-        
     except Exception as e:
-        st.error(f"챗봇 오류 상세: {str(e)}")  # 디버깅용
         return f"죄송합니다. 오류가 발생했습니다: {str(e)[:100]}..."
+
+def find_equipment_link(equipment_name, user_sites):
+    """설비명으로 관련 링크 찾기 (개선된 버전)"""
+    found_links = []
+    search_terms = [equipment_name.lower()]
+    
+    # 검색어 확장 (동의어, 부분 일치 등)
+    if len(equipment_name) > 2:
+        search_terms.extend([
+            equipment_name[:len(equipment_name)//2],  # 앞부분
+            equipment_name[len(equipment_name)//2:],  # 뒷부분
+        ])
+    
+    for tab_name, tab_data in user_sites.items():
+        for link in tab_data.get("links", []):
+            description = link.get("description", "").lower()
+            url = link.get("url", "").lower()
+            
+            # 다양한 매칭 방식
+            match_found = False
+            for term in search_terms:
+                if (term in description or 
+                    term in url or 
+                    any(keyword in description for keyword in term.split())):
+                    match_found = True
+                    break
+            
+            if match_found:
+                found_links.append({
+                    'description': link.get("description", ""),
+                    'url': link.get("url", ""),
+                    'tab': tab_name
+                })
+    
+    return found_links
 
 class SSOWebScraper:
     def __init__(self):
@@ -948,6 +1166,41 @@ class SSOWebScraper:
         
         finally:
             scraper.close()
+
+    
+def fetch_web_content_enhanced(url, timeout=8):
+    """향상된 웹 콘텐츠 가져오기 - 더 넓은 범위의 정보 수집"""
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        # 세션 사용으로 쿠키 유지
+        session = requests.Session()
+        session.headers.update(headers)
+        
+        response = session.get(url, timeout=timeout, verify=False)
+        response.raise_for_status()
+        
+        # 인코딩 자동 감지
+        if response.encoding is None:
+            response.encoding = 'utf-8'
+        
+        return response.text
+        
+    except requests.exceptions.Timeout:
+        return f"⚠️ 타임아웃: {url}"
+    except requests.exceptions.ConnectionError:
+        return f"⚠️ 연결 오류: {url}"
+    except requests.exceptions.HTTPError as e:
+        return f"⚠️ HTTP 오류 ({e.response.status_code}): {url}"
+    except Exception as e:
+        return f"⚠️ 오류: {str(e)}"
 
     def extract_equipment_info_enhanced(self, html_content, equipment_name):
         """향상된 설비 정보 추출"""
