@@ -298,6 +298,7 @@ st.markdown("""
             position: fixed;
             bottom: 20px;
             left: 20px;
+            border-top: 3px solid #d97706;
             z-index: 1000;
         }
         
@@ -468,7 +469,7 @@ def render_floating_chatbot():
         st.markdown("""
             <div class="floating-chatbot-container">
                 <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    아이콘
+                    🤖
                 </div>
             </div>
         """, unsafe_allow_html=True)
