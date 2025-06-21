@@ -25,6 +25,92 @@ import re
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # 플로팅 챗봇 컴포넌트
 def render_floating_chatbot():
+    # CSS 스타일 추가
+    st.markdown("""
+    <style>
+    .floating-chatbot {
+        position: fixed;
+        bottom: 100px;
+        right: 30px;
+        z-index: 1001;
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4);
+        transition: all 0.3s ease;
+        border: none;
+        outline: none;
+    }
+    
+    .floating-chatbot:hover {
+        transform: scale(1.1);
+        box-shadow: 0 8px 25px rgba(217, 119, 6, 0.6);
+    }
+    
+    .floating-chatbot.active {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .chatbot-popup {
+        position: fixed;
+        bottom: 170px;
+        right: 30px;
+        width: 400px;
+        height: 500px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        z-index: 1002;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chatbot-header {
+        background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chatbot-messages {
+        flex: 1;
+        padding: 1rem;
+        overflow-y: auto;
+        max-height: 400px;
+    }
+    
+    .chatbot-message {
+        margin-bottom: 1rem;
+    }
+    
+    .message-bubble {
+        padding: 0.5rem 1rem;
+        border-radius: 15px;
+        max-width: 80%;
+    }
+    
+    .message-bubble.user {
+        background: #d97706;
+        color: white;
+        margin-left: auto;
+    }
+    
+    .message-bubble.assistant {
+        background: #f1f5f9;
+        color: #334155;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     # 챗봇 상태 초기화
     if 'chatbot_open' not in st.session_state:
         st.session_state.chatbot_open = False
@@ -1743,7 +1829,6 @@ def apply_default_tabs_to_existing_users(team):
     
     return updated_users
 
-render_floating_chatbot()
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
     # ---- 대시보드 페이지 ----
