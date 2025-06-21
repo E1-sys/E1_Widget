@@ -1313,7 +1313,6 @@ if not st.session_state.authenticated:
                 st.session_state.team = team
                 st.session_state.user_id = user_id.strip()
                 st.rerun()
-    render_floating_chatbot()
     st.stop()
 
 # ---- 메인 화면 ----
@@ -1579,6 +1578,8 @@ if st.session_state.current_page == "홈":
                     </div>
                 </div>
             """, unsafe_allow_html=True)
+
+        render_floating_chatbot()
 
 elif st.session_state.current_page == "링크 바로가기":
     # ---- 링크 관리 페이지 ----
