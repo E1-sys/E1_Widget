@@ -456,6 +456,32 @@ st.markdown("""
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+def render_floating_chatbot():
+    """플로팅 챗봇 UI 렌더링 - 사용자별 세션 관리 추가"""
+    
+    # 전역 챗봇 메시지 상태 제거 (사용자별로 관리하므로)
+    # 기존 chatbot_messages는 더 이상 사용하지 않음
+    if 'chatbot_messages' in st.session_state:
+        del st.session_state['chatbot_messages']
+    
+    if 'chatbot_input' in st.session_state:
+        del st.session_state['chatbot_input']
+    
+    # 플로팅 챗봇 버튼과 팝오버
+    with st.container():
+        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
+        components.html("""
+            <div class="floating-chatbot-container">
+                <div class="floating-chatbot-icon" id="chatbot-trigger">
+                    🤖
+                </div>
+            </div>
+        """, height=0)
+        
+        # 팝오버를 사용한 챗봇 창
+        with st.popover("💬 AI 어시스턴트", use_container_width=False):
+            render_chatbot_content()
+
 def render_chatbot_content():
     """챗봇 팝오버 내용 렌더링"""
     
@@ -554,33 +580,8 @@ def render_chatbot_content():
         **시스템 도움말:**
         - "링크 추가 방법은?"
         - "즐겨찾기 설정 방법은?"
+        - "테스트"
         """)
-
-def render_floating_chatbot():
-    """플로팅 챗봇 UI 렌더링 - 사용자별 세션 관리 추가"""
-    
-    # 전역 챗봇 메시지 상태 제거 (사용자별로 관리하므로)
-    # 기존 chatbot_messages는 더 이상 사용하지 않음
-    if 'chatbot_messages' in st.session_state:
-        del st.session_state['chatbot_messages']
-    
-    if 'chatbot_input' in st.session_state:
-        del st.session_state['chatbot_input']
-    
-    # 플로팅 챗봇 버튼과 팝오버
-    with st.container():
-        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
-        components.html("""
-            <div class="floating-chatbot-container">
-                <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    🤖
-                </div>
-            </div>
-        """, height=0)
-        
-        # 팝오버를 사용한 챗봇 창
-        with st.popover("💬 AI 어시스턴트", use_container_width=False):
-            render_chatbot_content()
 
 def handle_chatbot_message(user_input):
     """챗봇 메시지 처리"""
