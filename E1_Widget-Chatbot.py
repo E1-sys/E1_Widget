@@ -628,7 +628,6 @@ def get_chatbot_response(message, context=""):
             r'(.+?)\s*사양\s*알려줘',
             r'(.+?)\s*규격\s*알려줘',
             r'(.+?)\s*데이터\s*보여줘',
-            r'(.+?)\s*에\s*대해\s*알려줘',
         ]
         
         for pattern in info_patterns:
