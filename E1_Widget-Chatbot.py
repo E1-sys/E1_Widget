@@ -1621,7 +1621,7 @@ else:
 with st.sidebar:
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%); 
-                    color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
+                    color: white; padding: 2rem; border-radius: 10px; margin-bottom: 1rem;">
             <h3 style="margin: 0; color: white;">🔗 E1 Link</h3>
             <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">
                 {current_team} | {viewing_user_id}
