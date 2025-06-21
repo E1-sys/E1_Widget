@@ -725,20 +725,44 @@ def get_chatbot_response(message, context=""):
         messages = [
             {"role": "system", "content": system_prompt}
         ] + conversation_history
+
         
-        response = model.chat.completions.create(
-            CHATBOT_MODEL = "gemma-3n-e4b-it",
-            model = genai.GenerativeModel(CHATBOT_MODEL),
-            messages=messages,
-            max_tokens=500,  # 플로팅 챗봇은 짧은 답변이 적합
-            temperature=0.7
+        full_prompt = system_prompt + f"\n\n사용자 질문: {message}\n\n답변:"
+        
+        # Gemini API 호출
+        response = model.generate_content(
+            full_prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=500,
+                temperature=0.7
+            )
         )
         
-        return response.choices[0].message.content.strip()
+        # 응답 추출 (안전하게)
+        if response and hasattr(response, 'text') and response.text:
+            result = response.text.strip()
+            if result:
+                return result
+        
+        # 대안 방법으로 응답 추출
+        if response and hasattr(response, 'candidates') and response.candidates:
+            try:
+                candidate = response.candidates[0]
+                if hasattr(candidate, 'content') and candidate.content:
+                    if hasattr(candidate.content, 'parts') and candidate.content.parts:
+                        result = candidate.content.parts[0].text.strip()
+                        if result:
+                            return result
+            except (AttributeError, IndexError):
+                pass
+        
+        return "🤖 응답을 생성할 수 없습니다. 다시 시도해주세요."
+        
+        )
         
     except Exception as e:
         st.error(f"챗봇 오류 상세: {str(e)}")  # 디버깅용
-        bot_response = f"죄송합니다. 오류가 발생했습니다: {str(e)[:100]}..."
+        return f"죄송합니다. 오류가 발생했습니다: {str(e)[:100]}..."
 
 class SSOWebScraper:
     def __init__(self):
@@ -1003,11 +1027,16 @@ class SSOWebScraper:
 
 GEMINI_API_KEY = st.secrets["chatbot"]["gemini_api_key"]
 genai.configure(api_key=GEMINI_API_KEY)
+
 @st.cache_resource
 def init_chatbot():
-    """챗봇 모델 초기화"""
     try:
-        model = genai.GenerativeModel('gemma-3n-e4b-it')
+        # API 키 확인
+        if not GEMINI_API_KEY:
+            st.error("API 키가 설정되지 않았습니다.")
+            return None
+            
+        model = genai.GenerativeModel('gemma-3n-e4b-it')  # 올바른 모델명
         return model
     except Exception as e:
         st.error(f"챗봇 초기화 실패: {str(e)}")
