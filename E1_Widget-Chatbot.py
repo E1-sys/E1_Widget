@@ -1636,6 +1636,8 @@ with st.sidebar:
     selected_nav = st.radio("메뉴", nav_options, key="navigation")
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
 
+    render_floating_chatbot()
+
     st.markdown("---")
     # 사이드바에 검색 기능 추가
     with st.sidebar:
