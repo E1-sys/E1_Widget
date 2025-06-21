@@ -295,9 +295,9 @@ def init_chatbot():
         st.error(f"챗봇 초기화 실패: {str(e)}")
         return None
 
-# 챗봇 응답 생성 함수
+# 개선된 챗봇 응답 생성 함수 (기존 함수 수정)
 def get_chatbot_response(message, context=""):
-    """챗봇 응답 생성 (사용자 링크 데이터 포함)"""
+    """챗봇 응답 생성 (웹 스크래핑 기능 포함)"""
     model = init_chatbot()
     if not model:
         return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
@@ -305,6 +305,51 @@ def get_chatbot_response(message, context=""):
     try:
         # 현재 사용자의 모든 링크 데이터 수집
         current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+        
+        # 설비 정보 요청인지 확인
+        equipment_info_request = False
+        equipment_name = None
+        
+        # 설비 정보 요청 패턴 확인
+        info_patterns = [
+            r'(.+?)\s*제원\s*알려줘',
+            r'(.+?)\s*정보\s*알려줘',
+            r'(.+?)\s*사양\s*알려줘',
+            r'(.+?)\s*규격\s*알려줘',
+            r'(.+?)\s*데이터\s*보여줘',
+            r'(.+?)\s*에\s*대해\s*알려줘',
+        ]
+        
+        for pattern in info_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                equipment_name = match.group(1).strip()
+                equipment_info_request = True
+                break
+        
+        # 웹 스크래핑을 통한 설비 정보 수집
+        web_content_info = ""
+        if equipment_info_request and equipment_name:
+            # 관련 링크 찾기
+            found_links = find_equipment_link(equipment_name, current_user_sites)
+            
+            if found_links:
+                st.info(f"🔍 {equipment_name} 관련 링크를 찾았습니다. 정보를 가져오는 중...")
+                
+                for i, link_info in enumerate(found_links[:3]):  # 최대 3개 링크만 확인
+                    with st.spinner(f"📡 {link_info['description']} 정보 수집 중... ({i+1}/{min(3, len(found_links))})"):
+                        html_content = fetch_web_content(link_info['url'])
+                        
+                        if not html_content.startswith("⚠️"):  # 오류가 아닌 경우
+                            extracted_info = extract_equipment_info(html_content, equipment_name)
+                            if extracted_info:
+                                web_content_info += f"\n\n📋 **{link_info['description']}에서 수집한 정보:**\n{extracted_info}\n"
+                        else:
+                            web_content_info += f"\n⚠️ {link_info['description']}: {html_content}\n"
+                        
+                        time.sleep(1)  # 서버 부하 방지
+            else:
+                web_content_info = f"\n⚠️ '{equipment_name}'과 관련된 링크를 찾을 수 없습니다."
         
         # 링크 데이터를 텍스트 형태로 변환
         links_info = []
@@ -342,16 +387,18 @@ def get_chatbot_response(message, context=""):
         사용자가 등록한 링크 정보:
         {links_text}
         
+        {web_content_info if web_content_info else ""}
+        
         사용자가 다음과 같은 질문을 할 수 있습니다:
         - "AIH 설비 링크를 모두 모아줘"
+        - "P-501A 제원 알려줘" (웹에서 정보 수집)
         - "펌프 설비 모두 모아줘"
         - "인천 지역 설비 모아줘"
         - "~~ 탭의 링크 리스트 보여줘"
         - "즐겨찾기한 링크들 보여줘"
         
-        질문에 따라 적절한 링크들을 필터링하여 보여주세요.
-        링크 정보를 보여줄 때는 다음 형식을 사용하세요:
-        📌 [링크명](URL) [탭명] [⭐즐겨찾기] [설비정보]
+        설비 정보 요청의 경우, 웹에서 수집한 정보를 바탕으로 상세하게 답변해주세요.
+        수집된 정보가 있다면 이를 정리하여 사용자가 이해하기 쉽게 설명해주세요.
         
         {context}
         
@@ -361,13 +408,16 @@ def get_chatbot_response(message, context=""):
         full_prompt = f"{system_prompt}\n\n사용자 질문: {message}"
         response = model.generate_content(full_prompt)
         
-        # 응답 후처리 - 링크 정보 강화
-        processed_response = enhance_response_with_links(response.text, message, current_user_sites)
+        # 응답 후처리 - 링크 정보 강화 (기존 함수와 동일)
+        if not equipment_info_request:  # 설비 정보 요청이 아닌 경우만 기존 링크 필터링 적용
+            processed_response = enhance_response_with_links(response.text, message, current_user_sites)
+        else:
+            processed_response = response.text
+        
         return processed_response
     
     except Exception as e:
         return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
-
 def enhance_response_with_links(response, user_message, user_sites):
     """응답에 링크 정보를 추가로 강화"""
     message_lower = user_message.lower()
