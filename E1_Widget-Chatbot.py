@@ -719,22 +719,20 @@ def handle_chatbot_message(user_input):
     except Exception as e:
         bot_response = f"죄송합니다. 일시적인 오류가 발생했습니다: {str(e)[:100]}..."
 
-    # 삭제된 대화가 있다면 사용자에게 알림 (선택사항)
-    if deleted_count > 0:
-        st.session_state[user_key].append({
-            "role": "assistant", 
-            "content": f"💡 대화 최적화를 위해 {deleted_count}개의 이전 대화를 정리했습니다."
-        })
         
     # 봇 응답 추가
     st.session_state[user_key].append({
         "role": "assistant", 
         "content": bot_response
+        # 삭제된 대화가 있다면 사용자에게 알림 (선택사항)
+        if deleted_count > 0:
+            st.session_state[user_key].append({
+                "role": "assistant", 
+                "content": f"💡 대화 최적화를 위해 {deleted_count}개의 이전 대화를 정리했습니다."
     })
     
     # 대화 내역 관리 (3회 초과 시 자동 삭제)
     deleted_count = manage_chat_history(user_key, max_conversations=3)
-    
 
 def get_user_chat_context(user_key, max_context_messages=6):
     """
