@@ -479,7 +479,7 @@ def render_floating_chatbot():
     """)
     
     # 플로팅 챗봇 아이콘
-    float_box(""):
+    float_box("")
         # 커스텀 스타일 적용된 버튼
         if st.button("", key="floating_chatbot_btn", 
                     help="AI 어시스턴트", 
