@@ -293,206 +293,147 @@ st.markdown("""
         
         .bottom-links a:hover {
             color: #ea580c;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
-# 플로팅 챗봇 CSS 스타일
-def render_floating_chatbot_css():
-    st.markdown("""
-    <style>
-        /* 플로팅 챗봇 버튼 */
-        .floating-chatbot {
+        .floating-chatbot-container {
             position: fixed;
             bottom: 30px;
-            left: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+        
+        /* 플로팅 챗봇 아이콘 */
+        .floating-chatbot-icon {
             width: 60px;
             height: 60px;
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
             border-radius: 50%;
-            color: white;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.4);
-            z-index: 1001;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 1.5rem;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
             transition: all 0.3s ease;
+            animation: pulse 2s infinite;
         }
         
-        .floating-chatbot:hover {
+        .floating-chatbot-icon:hover {
             transform: scale(1.1);
             box-shadow: 0 8px 25px rgba(217, 119, 6, 0.6);
+            animation: none;
         }
         
-        .floating-chatbot.active {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-        }
-        
-        /* 챗봇 팝업 컨테이너 */
-        .chatbot-popup {
-            position: fixed;
-            bottom: 100px;
-            left: 30px;
-            width: 380px;
-            height: 500px;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            z-index: 1002;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            border: 1px solid #e2e8f0;
-            animation: slideUp 0.3s ease;
-        }
-        
-        .chatbot-popup.hidden {
-            display: none;
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
+        /* 펄스 애니메이션 */
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            50% {
+                box-shadow: 0 4px 30px rgba(217, 119, 6, 0.7);
+            }
+            100% {
+                box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
             }
         }
         
-        /* 챗봇 헤더 */
-        .chatbot-header {
-            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-            color: white;
-            padding: 1rem 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        
-        .chatbot-title {
-            font-weight: 600;
-            font-size: 1.1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .chatbot-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 0.25rem;
-            border-radius: 4px;
-            transition: background 0.2s ease;
-        }
-        
-        .chatbot-close:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        /* 챗봇 메시지 영역 */
-        .chatbot-messages {
-            flex: 1;
-            padding: 1rem;
+        /* 채팅 메시지 컨테이너 */
+        .chatbot-messages-container {
+            max-height: 300px;
             overflow-y: auto;
+            padding: 0.5rem 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
             background: #f8fafc;
+            margin-bottom: 1rem;
         }
         
-        .chatbot-message {
-            margin-bottom: 1rem;
+        /* 채팅 메시지 스타일 */
+        .chat-message {
+            margin: 0.5rem 0;
+            display: flex;
             animation: fadeInUp 0.3s ease;
         }
         
-        .chatbot-message.user {
-            display: flex;
+        .chat-message.user-message {
             justify-content: flex-end;
         }
         
-        .chatbot-message.assistant {
-            display: flex;
+        .chat-message.assistant-message {
             justify-content: flex-start;
         }
         
-        .message-bubble {
+        .message-content {
             max-width: 80%;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 0.75rem;
             border-radius: 12px;
             word-wrap: break-word;
             white-space: pre-line;
+            font-size: 0.9rem;
         }
         
-        .message-bubble.user {
+        .user-message .message-content {
             background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
             color: white;
             border-bottom-right-radius: 4px;
         }
         
-        .message-bubble.assistant {
+        .assistant-message .message-content {
             background: white;
             color: #374151;
             border: 1px solid #e2e8f0;
             border-bottom-left-radius: 4px;
         }
         
-        /* 챗봇 입력 영역 */
-        .chatbot-input-area {
-            padding: 1rem;
-            background: white;
-            border-top: 1px solid #e2e8f0;
+        /* 스크롤바 스타일 */
+        .chatbot-messages-container::-webkit-scrollbar {
+            width: 6px;
         }
         
-        .chatbot-input-container {
-            display: flex;
-            gap: 0.5rem;
-            align-items: center;
+        .chatbot-messages-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 3px;
         }
         
-        .chatbot-input {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: 1px solid #e2e8f0;
-            border-radius: 20px;
-            outline: none;
-            font-size: 0.9rem;
-            transition: border-color 0.2s ease;
+        .chatbot-messages-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
         }
         
-        .chatbot-input:focus {
-            border-color: #d97706;
+        .chatbot-messages-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
         
-        .chatbot-send-btn {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease;
+        /* 팝오버 내용 스타일링 */
+        .stPopover > div {
+            width: 350px !important;
+            max-width: 90vw !important;
         }
         
-        .chatbot-send-btn:hover {
-            transform: scale(1.05);
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            .floating-chatbot-container {
+                bottom: 20px;
+                right: 20px;
+            }
+            
+            .floating-chatbot-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+            
+            .stPopover > div {
+                width: 300px !important;
+                max-width: 85vw !important;
+            }
+            
+            .chatbot-messages-container {
+                max-height: 200px;
+            }
         }
         
-        .chatbot-send-btn:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* 애니메이션 */
+        /* 페이드인 애니메이션 */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -503,48 +444,476 @@ def render_floating_chatbot_css():
                 transform: translateY(0);
             }
         }
-        
-        /* 모바일 반응형 */
-        @media (max-width: 768px) {
-            .floating-chatbot {
-                bottom: 20px;
-                left: 20px;
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
-            }
-            
-            .chatbot-popup {
-                bottom: 80px;
-                left: 20px;
-                left: 20px;
-                width: auto;
-                height: 400px;
-            }
-        }
-        
-        /* 스크롤바 스타일링 */
-        .chatbot-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        .chatbot-messages::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        
-        .chatbot-messages::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
-        }
-        
-        .chatbot-messages::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+def render_floating_chatbot():
+    """플로팅 챗봇 UI 렌더링"""
+    
+    # 챗봇 세션 상태 초기화
+    if 'chatbot_messages' not in st.session_state:
+        st.session_state.chatbot_messages = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+        ]
+    
+    if 'chatbot_input' not in st.session_state:
+        st.session_state.chatbot_input = ""
+    
+    # 플로팅 챗봇 버튼과 팝오버
+    with st.container():
+        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
+        st.markdown("""
+            <div class="floating-chatbot-container">
+                <div class="floating-chatbot-icon" id="chatbot-trigger">
+                    🤖
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 팝오버를 사용한 챗봇 창
+        with st.popover("💬 AI 어시스턴트", use_container_width=False):
+            render_chatbot_content()
+
+def render_chatbot_content():
+    """챗봇 팝오버 내용 렌더링"""
+    
+    # 현재 사용자 통계 표시 (간단하게)
+    current_user_sites = st.session_state.get(f'sites_{st.session_state.get("viewing_user_id", "default")}_{st.session_state.get("team", "default")}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    
+    st.markdown(f"**등록된 링크**: {total_links}개")
+    st.markdown("---")
+    
+    # 채팅 메시지 표시 영역 (높이 제한)
+    with st.container():
+        st.markdown('<div class="chatbot-messages-container">', unsafe_allow_html=True)
+        
+        # 메시지 표시
+        for idx, msg in enumerate(st.session_state.chatbot_messages):
+            if msg["role"] == "user":
+                st.markdown(f"""
+                    <div class="chat-message user-message">
+                        <div class="message-content">
+                            <strong>You:</strong> {msg["content"]}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                    <div class="chat-message assistant-message">
+                        <div class="message-content">
+                            <strong>🤖:</strong> {msg["content"]}
+                        </div>
+                    </div>
+                """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # 입력 영역
+    col1, col2 = st.columns([4, 1])
+    
+    with col1:
+        user_input = st.text_input(
+            "메시지 입력...", 
+            key="chatbot_input_field",
+            placeholder="예: 인천 지역 설비 모아줘",
+            label_visibility="collapsed"
+        )
+    
+    with col2:
+        send_button = st.button("전송", key="chatbot_send", use_container_width=True)
+    
+    # 전송 버튼 클릭 또는 엔터 시 처리
+    if send_button and user_input.strip():
+        handle_chatbot_message(user_input.strip())
+        st.rerun()
+    
+    # 채팅 내역 삭제 버튼
+    if st.button("🗑️ 채팅 내역 삭제", key="chatbot_clear"):
+        st.session_state.chatbot_messages = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+        ]
+        st.rerun()
+    
+    # 사용 가능한 명령어 안내 (축약형)
+    with st.expander("💡 질문 예시"):
+        st.markdown("""
+        **설비 관련:**
+        - "AIH 설비 링크 모아줘"
+        - "펌프 설비 보여줘"
+        - "인천 지역 설비 모아줘"
+        
+        **링크 관리:**
+        - "즐겨찾기 링크 보여줘"
+        - "[탭명] 탭 링크 보여줘"
+        
+        **시스템 도움말:**
+        - "링크 추가 방법은?"
+        - "즐겨찾기 설정 방법은?"
+        """)
+
+def handle_chatbot_message(user_input):
+    """챗봇 메시지 처리"""
+    # 사용자 메시지 추가
+    st.session_state.chatbot_messages.append({
+        "role": "user", 
+        "content": user_input
+    })
+    
+    # 현재 사용자 정보 수집
+    viewing_user_id = st.session_state.get("viewing_user_id", "default")
+    current_team = st.session_state.get("team", "default")
+    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    total_aih_links = sum(
+        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
+        for tab_data in current_user_sites.values()
+    )
+    
+    # 컨텍스트 정보 추가
+    context = f"""
+    현재 페이지: {st.session_state.get('current_page', '홈')}
+    사용자 탭 수: {len(current_user_sites)}
+    총 링크 수: {total_links}
+    AIH 설비 링크 수: {total_aih_links}
+    """
+    
+    # AI 응답 생성 (기존 함수 사용)
+    try:
+        bot_response = get_chatbot_response(user_input, context)
+    except:
+        bot_response = "죄송합니다. 일시적인 오류가 발생했습니다. 다시 시도해주세요."
+    
+    # 봇 응답 추가
+    st.session_state.chatbot_messages.append({
+        "role": "assistant", 
+        "content": bot_response
+    })
+    
+    # 입력 필드 초기화
+    st.session_state.chatbot_input = ""
+
+# 기존 챗봇 함수들을 플로팅 챗봇에 맞게 수정
+def get_chatbot_response(message, context=""):
+    """챗봇 응답 생성 (플로팅 챗봇용으로 수정)"""
+    model = init_chatbot()
+    if not model:
+        return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
+    
+    try:
+        # 현재 사용자 정보 가져오기
+        viewing_user_id = st.session_state.get("viewing_user_id", "default")
+        current_team = st.session_state.get("team", "default")
+        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+        
+        # 설비 정보 요청인지 확인
+        equipment_info_request = False
+        equipment_name = None
+        
+        # 설비 정보 요청 패턴 확인
+        info_patterns = [
+            r'(.+?)\s*제원\s*알려줘',
+            r'(.+?)\s*정보\s*알려줘',
+            r'(.+?)\s*사양\s*알려줘',
+            r'(.+?)\s*규격\s*알려줘',
+            r'(.+?)\s*데이터\s*보여줘',
+            r'(.+?)\s*에\s*대해\s*알려줘',
+        ]
+        
+        for pattern in info_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                equipment_name = match.group(1).strip()
+                equipment_info_request = True
+                break
+        
+        # 웹 스크래핑을 통한 설비 정보 수집
+        web_content_info = ""
+        if equipment_info_request and equipment_name:
+            # 관련 링크 찾기
+            found_links = find_equipment_link(equipment_name, current_user_sites)
+            
+            if found_links:
+                # 플로팅 챗봇에서는 스피너 대신 간단한 메시지
+                web_content_info += f"\n🔍 {equipment_name} 관련 정보를 검색 중...\n"
+                
+                for i, link_info in enumerate(found_links[:2]):  # 최대 2개 링크만 확인 (속도 향상)
+                    html_content = fetch_web_content(link_info['url'])
+                    
+                    if not html_content.startswith("⚠️"):  # 오류가 아닌 경우
+                        extracted_info = extract_equipment_info(html_content, equipment_name)
+                        if extracted_info:
+                            web_content_info += f"\n📋 **{link_info['description']}에서 수집한 정보:**\n{extracted_info}\n"
+                    else:
+                        web_content_info += f"\n⚠️ {link_info['description']}: 정보 수집 실패\n"
+                    
+                    time.sleep(0.5)  # 서버 부하 방지 (단축)
+            else:
+                web_content_info = f"\n⚠️ '{equipment_name}'과 관련된 링크를 찾을 수 없습니다."
+        
+        # 링크 데이터를 텍스트 형태로 변환
+        links_info = []
+        for tab_name, tab_data in current_user_sites.items():
+            links_info.append(f"탭명: {tab_name}")
+            for i, link in enumerate(tab_data.get("links", [])):
+                description = link.get("description", "")
+                url = link.get("url", "")
+                is_favorite = "⭐" if link.get("favorite", False) else ""
+                
+                # AIH 설비 링크인지 판단
+                is_aih = "http://aih.e1.co.kr" in url
+                base_location = ""
+                if is_aih:
+                    if "DS%7C" in url:
+                        base_location = "대산"
+                    elif "IC%7C" in url:
+                        base_location = "인천"
+                    elif "YS%7C" in url:
+                        base_location = "여수"
+                
+                links_info.append(f"  - {description} ({url}) {is_favorite} {'[AIH설비-' + base_location + ']' if is_aih else ''}")
+        
+        links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
+        
+        # 시스템 프롬프트 설정 (플로팅 챗봇용 - 더 간결하게)
+        system_prompt = f"""
+        당신은 E1 Link 시스템의 AI 어시스턴트입니다. 간결하고 친근한 답변을 제공하세요.
+        
+        현재 사용자 정보:
+        - 팀: {st.session_state.get('team', '알 수 없음')}
+        - 사용자: {st.session_state.get('user_id', '알 수 없음')}
+        
+        사용자가 등록한 링크 정보:
+        {links_text}
+        
+        {web_content_info if web_content_info else ""}
+        
+        답변 규칙:
+        1. 간결하고 핵심적인 답변 제공 (최대 3-4줄)
+        2. 설비 정보 요청시 웹에서 수집한 정보 활용
+        3. 링크 추천시 사용자의 등록된 링크 중에서 제안
+        4. 친근하고 도움이 되는 톤 유지
+        5. 이모지 적절히 활용
+        """
+        
+        # 대화 히스토리 구성 (플로팅 챗봇용 - 최근 3개 대화만)
+        conversation_history = []
+        chat_history = st.session_state.get("floating_chat_history", [])
+        
+        # 최근 3개 대화만 컨텍스트로 사용 (성능 최적화)
+        for chat in chat_history[-6:]:  # 최근 3개 질문-답변 쌍
+            if chat["role"] == "user":
+                conversation_history.append({"role": "user", "content": chat["content"]})
+            else:
+                conversation_history.append({"role": "assistant", "content": chat["content"]})
+        
+        # 현재 메시지 추가
+        conversation_history.append({"role": "user", "content": message})
+        
+        # AI 응답 생성
+        messages = [
+            {"role": "system", "content": system_prompt}
+        ] + conversation_history
+        
+        response = model.chat.completions.create(
+            model=CHATBOT_MODEL,
+            messages=messages,
+            max_tokens=500,  # 플로팅 챗봇은 짧은 답변이 적합
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content.strip()
+        
+    except Exception as e:
+        st.error(f"챗봇 응답 생성 중 오류: {str(e)}")
+        return "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 🤖"
+
+def render_floating_chatbot():
+    """플로팅 챗봇 UI 렌더링"""
+    if "floating_chat_open" not in st.session_state:
+        st.session_state.floating_chat_open = False
+    
+    if "floating_chat_history" not in st.session_state:
+        st.session_state.floating_chat_history = []
+    
+    # 플로팅 챗봇 CSS
+    st.markdown("""
+    <style>
+    .floating-chat-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
+    
+    .floating-chat-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+    
+    .floating-chat-window {
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        width: 350px;
+        height: 500px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        background: #f8f9fa;
+    }
+    
+    .chat-input-area {
+        padding: 10px;
+        border-top: 1px solid #e0e0e0;
+        background: white;
+    }
+    
+    .user-message {
+        background: #667eea;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 15px 15px 5px 15px;
+        margin: 5px 0;
+        margin-left: 20px;
+        max-width: 80%;
+        float: right;
+        clear: both;
+    }
+    
+    .bot-message {
+        background: white;
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 15px 15px 15px 5px;
+        margin: 5px 0;
+        margin-right: 20px;
+        max-width: 80%;
+        float: left;
+        clear: both;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # 챗봇 토글 버튼
+    col1, col2 = st.columns([1, 1])
+    with col2:
+        if st.button("💬", help="AI 챗봇", key="floating_chat_toggle"):
+            st.session_state.floating_chat_open = not st.session_state.floating_chat_open
+    
+    # 챗봇 창이 열려있을 때
+    if st.session_state.floating_chat_open:
+        with st.container():
+            # 챗봇 헤더
+            st.markdown("### 🤖 E1 Link AI Assistant")
+            
+            # 챗봇 메시지 영역
+            chat_container = st.container()
+            with chat_container:
+                # 기존 대화 히스토리 표시
+                for i, chat in enumerate(st.session_state.floating_chat_history):
+                    if chat["role"] == "user":
+                        st.markdown(f"""
+                        <div style="text-align: right; margin: 10px 0;">
+                            <div style="display: inline-block; background: #667eea; color: white; 
+                                       padding: 8px 12px; border-radius: 15px 15px 5px 15px; 
+                                       max-width: 80%;">
+                                {chat["content"]}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="text-align: left; margin: 10px 0;">
+                            <div style="display: inline-block; background: white; color: #333; 
+                                       padding: 8px 12px; border-radius: 15px 15px 15px 5px; 
+                                       max-width: 80%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                {chat["content"]}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            # 채팅 입력 영역
+            with st.form(key="floating_chat_form", clear_on_submit=True):
+                user_input = st.text_input("메시지를 입력하세요...", key="floating_chat_input", placeholder="설비 정보나 링크에 대해 물어보세요!")
+                col1, col2, col3 = st.columns([1, 1, 1])
+                
+                with col2:
+                    submit_button = st.form_submit_button("전송", use_container_width=True)
+                
+                with col3:
+                    clear_button = st.form_submit_button("대화 초기화", use_container_width=True)
+            
+            # 메시지 전송 처리
+            if submit_button and user_input:
+                # 사용자 메시지 추가
+                st.session_state.floating_chat_history.append({
+                    "role": "user", 
+                    "content": user_input,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                
+                # AI 응답 생성
+                with st.spinner("AI가 답변을 생성 중입니다..."):
+                    bot_response = get_chatbot_response(user_input)
+                
+                # AI 응답 추가
+                st.session_state.floating_chat_history.append({
+                    "role": "assistant", 
+                    "content": bot_response,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                
+                st.rerun()
+            
+            # 대화 초기화
+            if clear_button:
+                st.session_state.floating_chat_history = []
+                st.success("대화가 초기화되었습니다!")
+                st.rerun()
+            
+            # 닫기 버튼
+            if st.button("❌ 닫기", key="close_floating_chat"):
+                st.session_state.floating_chat_open = False
+                st.rerun()
+
+# 플로팅 챗봇 렌더링 (모든 페이지에서)
+render_floating_chatbot()
+
 
 class SSOWebScraper:
     def __init__(self):
@@ -806,183 +1175,6 @@ class SSOWebScraper:
             self.driver.quit()
         self.session.close()
 
-# 플로팅 챗봇 UI 렌더링
-def render_floating_chatbot():
-    # CSS 스타일 적용
-    render_floating_chatbot_css()
-    
-    # 챗봇 상태 초기화
-    if 'chatbot_open' not in st.session_state:
-        st.session_state.chatbot_open = False
-    
-    if 'floating_chat_messages' not in st.session_state:
-        st.session_state.floating_chat_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-        ]
-    
-    # 현재 사용자 정보 가져오기
-    current_team = st.session_state.get('team', 'Default')
-    viewing_user_id = st.session_state.get('user_id', 'default_user')
-    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
-    
-    # 플로팅 버튼 및 팝업 HTML
-    chatbot_html = f"""
-    <div id="floating-chatbot-container">
-        <!-- 플로팅 챗봇 버튼 -->
-        <button class="floating-chatbot {'active' if st.session_state.chatbot_open else ''}" 
-                onclick="toggleChatbot()" id="chatbot-btn">
-            🤖
-        </button>
-        
-        <!-- 챗봇 팝업 -->
-        <div class="chatbot-popup {'hidden' if not st.session_state.chatbot_open else ''}" id="chatbot-popup">
-            <!-- 헤더 -->
-            <div class="chatbot-header">
-                <div class="chatbot-title">
-                    🤖 AI 어시스턴트
-                </div>
-                <button class="chatbot-close" onclick="toggleChatbot()">×</button>
-            </div>
-            
-            <!-- 메시지 영역 -->
-            <div class="chatbot-messages" id="chatbot-messages">
-                {''.join([render_message(msg) for msg in st.session_state.floating_chat_messages])}
-            </div>
-            
-            <!-- 입력 영역 -->
-            <div class="chatbot-input-area">
-                <div class="chatbot-input-container">
-                    <input type="text" class="chatbot-input" id="chatbot-input" 
-                           placeholder="메시지를 입력하세요..." 
-                           onkeypress="handleKeyPress(event)">
-                    <button class="chatbot-send-btn" onclick="sendMessage()" id="send-btn">
-                        ➤
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <script>
-        function toggleChatbot() {{
-            const popup = document.getElementById('chatbot-popup');
-            const btn = document.getElementById('chatbot-btn');
-            
-            if (popup.classList.contains('hidden')) {{
-                popup.classList.remove('hidden');
-                btn.classList.add('active');
-                document.getElementById('chatbot-input').focus();
-            }} else {{
-                popup.classList.add('hidden');
-                btn.classList.remove('active');
-            }}
-        }}
-        
-        function handleKeyPress(event) {{
-            if (event.key === 'Enter') {{
-                event.preventDefault();
-                sendMessage();
-            }}
-        }}
-        
-        function sendMessage() {{
-            const input = document.getElementById('chatbot-input');
-            const message = input.value.trim();
-            
-            if (message) {{
-                // 메시지 전송 처리
-                window.parent.postMessage({{
-                    type: 'chatbot_message',
-                    message: message
-                }}, '*');
-                
-                // 입력창 비우기
-                input.value = '';
-            }}
-        }}
-        
-        function addMessage(role, content) {{
-            const messagesContainer = document.getElementById('chatbot-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chatbot-message ${{role}}`;
-            messageDiv.innerHTML = `
-                <div class="message-bubble ${{role}}">
-                    ${{role === 'user' ? '<strong>You:</strong> ' : '<strong>🤖 AI:</strong> '}}${{content}}
-                </div>
-            `;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }}
-        
-        // 메시지 수신 리스너
-        window.addEventListener('message', function(event) {{
-            if (event.data.type === 'chatbot_response') {{
-                addMessage('assistant', event.data.message);
-            }}
-        }});
-    </script>
-    """
-    
-    # HTML 컴포넌트 렌더링
-    st.components.v1.html(chatbot_html, height=0)
-    
-    # 메시지 처리를 위한 숨겨진 입력 필드
-    if 'pending_chatbot_message' not in st.session_state:
-        st.session_state.pending_chatbot_message = ""
-    
-    # JavaScript에서 전송된 메시지 처리
-    chatbot_message = st.text_input("", key="hidden_chatbot_input", 
-                                   value=st.session_state.pending_chatbot_message,
-                                   label_visibility="hidden")
-    
-    if chatbot_message and chatbot_message != st.session_state.pending_chatbot_message:
-        # 사용자 메시지 추가
-        st.session_state.floating_chat_messages.append({
-            "role": "user", 
-            "content": chatbot_message
-        })
-        
-        # 컨텍스트 정보 생성
-        total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
-        total_aih_links = sum(
-            sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
-            for tab_data in current_user_sites.values()
-        )
-        
-        context = f"""
-        현재 페이지: {st.session_state.get('current_page', '홈')}
-        사용자 탭 수: {len(current_user_sites)}
-        총 링크 수: {total_links}
-        AIH 설비 링크 수: {total_aih_links}
-        """
-        
-        # AI 응답 생성
-        bot_response = get_chatbot_response(chatbot_message, context)
-        
-        # 봇 응답 추가
-        st.session_state.floating_chat_messages.append({
-            "role": "assistant", 
-            "content": bot_response
-        })
-        
-        # 입력 필드 초기화
-        st.session_state.pending_chatbot_message = ""
-        
-        # 페이지 새로고침
-        st.rerun()
-
-def render_message(msg):
-    """메시지 HTML 생성"""
-    role_class = "user" if msg["role"] == "user" else "assistant"
-    role_label = "<strong>You:</strong> " if msg["role"] == "user" else "<strong>🤖 AI:</strong> "
-    
-    return f"""
-    <div class="chatbot-message {role_class}">
-        <div class="message-bubble {role_class}">
-            {role_label}{msg["content"]}
-        </div>
-    </div>
-    """
 
 GEMINI_API_KEY = st.secrets["chatbot"]["gemini_api_key"]
 genai.configure(api_key=GEMINI_API_KEY)
@@ -995,74 +1187,6 @@ def init_chatbot():
     except Exception as e:
         st.error(f"챗봇 초기화 실패: {str(e)}")
         return None
-
-# 개선된 챗봇 응답 생성 함수 (기존 함수 수정)
-def get_chatbot_response(message, context=""):
-    """챗봇 응답 생성 (웹 스크래핑 기능 포함)"""
-    try:
-        # 간단한 응답 시뮬레이션 (실제로는 genai 모델 사용)
-        current_team = st.session_state.get('team', 'Default')
-        viewing_user_id = st.session_state.get('user_id', 'default_user')
-        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
-        
-        # 링크 데이터를 텍스트 형태로 변환
-        links_info = []
-        for tab_name, tab_data in current_user_sites.items():
-            links_info.append(f"탭명: {tab_name}")
-            for i, link in enumerate(tab_data.get("links", [])):
-                description = link.get("description", "")
-                url = link.get("url", "")
-                is_favorite = "⭐" if link.get("favorite", False) else ""
-                
-                # AIH 설비 링크인지 판단
-                is_aih = "http://aih.e1.co.kr" in url
-                base_location = ""
-                if is_aih:
-                    if "DS%7C" in url:
-                        base_location = "대산"
-                    elif "IC%7C" in url:
-                        base_location = "인천"
-                    elif "YS%7C" in url:
-                        base_location = "여수"
-                
-                links_info.append(f"  - {description} ({url}) {is_favorite} {'[AIH설비-' + base_location + ']' if is_aih else ''}")
-        
-        links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
-        
-        # 간단한 응답 로직
-        if "안녕" in message or "hello" in message.lower():
-            return "안녕하세요! E1 Link AI 어시스턴트입니다. 어떤 도움이 필요하신가요?"
-        elif "링크" in message and "개수" in message:
-            total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
-            return f"현재 등록된 링크는 총 {total_links}개입니다."
-        elif "AIH" in message.upper() and "설비" in message:
-            aih_links = []
-            for tab_name, tab_data in current_user_sites.items():
-                for link in tab_data.get("links", []):
-                    if "aih.e1.co.kr" in link.get("url", ""):
-                        location = ""
-                        if "DS%7C" in link.get("url", ""):
-                            location = "[대산]"
-                        elif "IC%7C" in link.get("url", ""):
-                            location = "[인천]"
-                        elif "YS%7C" in link.get("url", ""):
-                            location = "[여수]"
-                        aih_links.append(f"• {link.get('description', '설명 없음')} {location}")
-            
-            if aih_links:
-                return f"등록된 AIH 설비 링크들입니다:\n\n" + "\n".join(aih_links)
-            else:
-                return "등록된 AIH 설비 링크가 없습니다."
-        else:
-            return f"'{message}'에 대한 질문을 받았습니다. 현재 {len(current_user_sites)}개의 탭과 관련 링크들을 분석하여 도움을 드릴 수 있습니다. 더 구체적인 질문을 해주시면 더 정확한 답변을 드릴 수 있습니다."
-    
-    except Exception as e:
-        return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
-
-def add_floating_chatbot():
-    """메인 애플리케이션에 플로팅 챗봇 추가"""
-    render_floating_chatbot()
-
 
 # ---- 관리자 ID 및 설정 ----
 ADMIN_IDS = ["admin"]
@@ -2260,8 +2384,6 @@ elif st.session_state.current_page == "데이터 백업 관리" and is_admin:
         st.metric("기본 탭 설정 파일", default_files)
     with col3:
         st.metric("총 파일 수", sites_files + default_files)
-
-add_floating_chatbot()
 
 # ---- 하단 고정 포털 링크 ----
 st.markdown("""
