@@ -547,7 +547,7 @@ def render_chatbot_content():
             )
             
             # 숨겨진 submit 버튼 (엔터키로 전송)
-            form_submit = st.form_submit_button("", use_container_width=True)
+            form_submit = st.form_submit_button("")
     
     with col2:
         # 별도 전송 버튼
