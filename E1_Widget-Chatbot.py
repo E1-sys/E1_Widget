@@ -21,750 +21,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import re
 
-# SSL 인증서 검증 비활성화
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-# 플로팅 챗봇 컴포넌트
-def render_floating_chatbot():
-    # CSS 스타일 추가
-    st.markdown("""
-    <style>
-    .floating-chatbot {
-        position: fixed;
-        bottom: 100px;
-        right: 30px;
-        z-index: 1001;
-        width: 60px;
-        height: 60px;
-        background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.5rem;
-        cursor: pointer;
-        box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4);
-        transition: all 0.3s ease;
-        border: none;
-        outline: none;
-    }
-    
-    .floating-chatbot:hover {
-        transform: scale(1.1);
-        box-shadow: 0 8px 25px rgba(217, 119, 6, 0.6);
-    }
-    
-    .floating-chatbot.active {
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    }
-    
-    .chatbot-popup {
-        position: fixed;
-        bottom: 170px;
-        right: 30px;
-        width: 400px;
-        height: 500px;
-        background: white;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        z-index: 1002;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .chatbot-header {
-        background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
-        color: white;
-        padding: 1rem;
-        border-radius: 15px 15px 0 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .chatbot-messages {
-        flex: 1;
-        padding: 1rem;
-        overflow-y: auto;
-        max-height: 400px;
-    }
-    
-    .chatbot-message {
-        margin-bottom: 1rem;
-    }
-    
-    .message-bubble {
-        padding: 0.5rem 1rem;
-        border-radius: 15px;
-        max-width: 80%;
-    }
-    
-    .message-bubble.user {
-        background: #d97706;
-        color: white;
-        margin-left: auto;
-    }
-    
-    .message-bubble.assistant {
-        background: #f1f5f9;
-        color: #334155;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    # 챗봇 상태 초기화
-    if 'chatbot_open' not in st.session_state:
-        st.session_state.chatbot_open = False
-    if 'chatbot_messages' not in st.session_state:
-        st.session_state.chatbot_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-        ]
-    
-    # 플로팅 버튼 HTML
-    chatbot_button_class = "floating-chatbot active" if st.session_state.chatbot_open else "floating-chatbot"
-    chatbot_icon = "✕" if st.session_state.chatbot_open else "🤖"
-    
-    # 현재 사용자 통계
-    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
-    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
-    total_aih_links = sum(
-        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
-        for tab_data in current_user_sites.values()
-    )
-    
-    # 챗봇 HTML 생성
-    chatbot_html = f"""
-    <div id="floating-chatbot-container">
-        <button class="{chatbot_button_class}" onclick="toggleChatbot()">
-            {chatbot_icon}
-        </button>
-        
-        {"<div class='chatbot-popup' id='chatbot-popup'>" if st.session_state.chatbot_open else ""}
-            {"<div class='chatbot-header'>" if st.session_state.chatbot_open else ""}
-                {"<div class='chatbot-title'>" if st.session_state.chatbot_open else ""}
-                    {"🤖 AI 어시스턴트" if st.session_state.chatbot_open else ""}
-                {"</div>" if st.session_state.chatbot_open else ""}
-                {"<button class='chatbot-close' onclick='toggleChatbot()'>✕</button>" if st.session_state.chatbot_open else ""}
-            {"</div>" if st.session_state.chatbot_open else ""}
-            
-            {"<div class='chatbot-messages' id='chatbot-messages'>" if st.session_state.chatbot_open else ""}
-    """
-    
-    # 메시지 렌더링
-    if st.session_state.chatbot_open:
-        for msg in st.session_state.chatbot_messages:
-            role_class = "user" if msg["role"] == "user" else "assistant"
-            chatbot_html += f"""
-                <div class='chatbot-message {role_class}'>
-                    <div class='message-bubble {role_class}'>
-                        {msg["content"]}
-                    </div>
-                </div>
-            """
-    
-    chatbot_html += f"""
-            {"</div>" if st.session_state.chatbot_open else ""}
-        {"</div>" if st.session_state.chatbot_open else ""}
-    </div>
-    
-    <script>
-        function toggleChatbot() {{
-            const isOpen = {str(st.session_state.chatbot_open).lower()};
-            if (isOpen) {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue',
-                    key: 'chatbot_toggle',
-                    value: 'close'
-                }}, '*');
-            }} else {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue', 
-                    key: 'chatbot_toggle',
-                    value: 'open'
-                }}, '*');
-            }}
-        }}
-        
-        // 메시지가 추가될 때마다 스크롤을 아래로
-        const messagesContainer = document.getElementById('chatbot-messages');
-        if (messagesContainer) {{
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }}
-    </script>
-    """
-    
-    st.components.v1.html(chatbot_html, height=0)
-    
-    # 챗봇 토글 처리
-    chatbot_toggle = st.session_state.get('chatbot_toggle_value', None)
-    if chatbot_toggle == 'open' and not st.session_state.chatbot_open:
-        st.session_state.chatbot_open = True
-        st.rerun()
-    elif chatbot_toggle == 'close' and st.session_state.chatbot_open:
-        st.session_state.chatbot_open = False
-        st.rerun()
-    
-    # 챗봇이 열려있을 때 입력 영역 표시
-    if st.session_state.chatbot_open:
-        st.markdown("""
-            <div style="position: fixed; bottom: 170px; right: 30px; width: 380px; z-index: 1003;">
-                <div style="background: white; padding: 1rem; border-top: 1px solid #e2e8f0; border-radius: 0 0 15px 15px;">
-        """, unsafe_allow_html=True)
-        
-        # 입력 컨테이너
-        input_container = st.container()
-        with input_container:
-            col1, col2 = st.columns([4, 1])
-            
-            with col1:
-                user_input = st.text_input(
-                    "",
-                    key="floating_chat_input",
-                    placeholder="메시지를 입력하세요...",
-                    label_visibility="collapsed"
-                )
-            
-            with col2:
-                send_button = st.button("🚀", key="floating_send_btn", use_container_width=True)
-        
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        
-        # 엔터키 처리를 위한 JavaScript
-        st.components.v1.html("""
-            <script>
-                const input = window.parent.document.querySelector('[data-testid="stTextInput"] input');
-                if (input) {
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const sendBtn = window.parent.document.querySelector('[data-testid="stButton"] button');
-                            if (sendBtn) {
-                                sendBtn.click();
-                            }
-                        }
-                    });
-                }
-            </script>
-        """, height=0)
-        
-        # 메시지 전송 처리
-        if (send_button or user_input) and user_input.strip():
-            # 사용자 메시지 추가
-            st.session_state.chatbot_messages.append({
-                "role": "user",
-                "content": user_input
-            })
-            
-            # 컨텍스트 정보
-            context = f"""
-            현재 페이지: {st.session_state.get('current_page', '홈')}
-            사용자 탭 수: {len(current_user_sites)}
-            총 링크 수: {total_links}
-            AIH 설비 링크 수: {total_aih_links}
-            """
-            
-            # AI 응답 생성 (실제 함수로 교체 필요)
-            bot_response = get_chatbot_response(user_input, context)
-            
-            # 봇 응답 추가
-            st.session_state.chatbot_messages.append({
-                "role": "assistant",
-                "content": bot_response
-            })
-            
-            # 입력 필드 초기화
-            st.session_state.floating_chat_input = ""
-            st.rerun()
-
-class SSOWebScraper:
-    def __init__(self):
-        self.session = requests.Session()
-        self.driver = None
-        self.setup_session()
-    
-    def setup_session(self):
-        """세션 초기 설정"""
-        self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive',
-        })
-    
-    def login_with_credentials(self, login_url, username, password, username_field='username', password_field='password'):
-        """폼 기반 로그인 시도"""
-        try:
-            # 로그인 페이지 접근
-            response = self.session.get(login_url, verify=False)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # CSRF 토큰 찾기
-            csrf_token = None
-            csrf_input = soup.find('input', {'name': re.compile(r'csrf|token|_token', re.I)})
-            if csrf_input:
-                csrf_token = csrf_input.get('value')
-            
-            # 로그인 폼 데이터 준비
-            login_data = {
-                username_field: username,
-                password_field: password
-            }
-            
-            if csrf_token:
-                login_data[csrf_input.get('name')] = csrf_token
-            
-            # 로그인 시도
-            login_response = self.session.post(login_url, data=login_data, verify=False)
-            
-            # 로그인 성공 여부 확인 (리다이렉션 또는 특정 텍스트 확인)
-            if login_response.status_code == 200 and 'login' not in login_response.url.lower():
-                return True, "로그인 성공"
-            else:
-                return False, "로그인 실패"
-        
-        except Exception as e:
-            return False, f"로그인 오류: {str(e)}"
-    
-    def setup_selenium_driver(self, headless=True):
-        """Selenium WebDriver 설정"""
-        try:
-            chrome_options = Options()
-            if headless:
-                chrome_options.add_argument('--headless')
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--window-size=1920,1080')
-            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
-            
-            self.driver = webdriver.Chrome(options=chrome_options)
-            return True
-        except Exception as e:
-            print(f"Selenium 드라이버 설정 오류: {str(e)}")
-            return False
-    
-    def selenium_login(self, login_url, username, password, username_selector='input[name="username"]', password_selector='input[name="password"]', submit_selector='button[type="submit"]'):
-        """Selenium을 사용한 로그인"""
-        try:
-            if not self.driver:
-                if not self.setup_selenium_driver():
-                    return False, "Selenium 드라이버 설정 실패"
-            
-            self.driver.get(login_url)
-            
-            # 로그인 폼 요소 대기
-            wait = WebDriverWait(self.driver, 10)
-            
-            username_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, username_selector)))
-            password_input = self.driver.find_element(By.CSS_SELECTOR, password_selector)
-            submit_button = self.driver.find_element(By.CSS_SELECTOR, submit_selector)
-            
-            # 로그인 정보 입력
-            username_input.clear()
-            username_input.send_keys(username)
-            password_input.clear()
-            password_input.send_keys(password)
-            
-            # 로그인 버튼 클릭
-            submit_button.click()
-            
-            # 로그인 완료 대기 (URL 변경 또는 특정 요소 나타남)
-            time.sleep(3)
-            
-            # 세션 쿠키를 requests 세션으로 복사
-            cookies = self.driver.get_cookies()
-            for cookie in cookies:
-                self.session.cookies.set(cookie['name'], cookie['value'])
-            
-            return True, "Selenium 로그인 성공"
-        
-        except Exception as e:
-            return False, f"Selenium 로그인 오류: {str(e)}"
-    
-    def fetch_authenticated_content(self, url, timeout=10):
-        """인증된 세션으로 콘텐츠 가져오기"""
-        try:
-            response = self.session.get(url, timeout=timeout, verify=False)
-            response.raise_for_status()
-            
-            # 로그인 리다이렉션 확인
-            if 'login' in response.url.lower() or 'signin' in response.url.lower():
-                return None, "인증이 필요합니다"
-            
-            if response.encoding is None:
-                response.encoding = 'utf-8'
-            
-            return response.text, "성공"
-        
-        except requests.exceptions.Timeout:
-            return None, f"타임아웃: {url}"
-        except requests.exceptions.ConnectionError:
-            return None, f"연결 오류: {url}"
-        except requests.exceptions.HTTPError as e:
-            return None, f"HTTP 오류: {e}"
-        except Exception as e:
-            return None, f"오류: {str(e)}"
-    
-    def fetch_with_selenium(self, url, wait_for_element=None, timeout=10):
-        """Selenium으로 JavaScript 렌더링된 콘텐츠 가져오기"""
-        try:
-            if not self.driver:
-                if not self.setup_selenium_driver():
-                    return None, "Selenium 드라이버 설정 실패"
-            
-            self.driver.get(url)
-            
-            # 특정 요소 대기 (선택사항)
-            if wait_for_element:
-                wait = WebDriverWait(self.driver, timeout)
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, wait_for_element)))
-            else:
-                time.sleep(2)  # 기본 대기
-            
-            return self.driver.page_source, "성공"
-        
-        except Exception as e:
-            return None, f"Selenium 페이지 로드 오류: {str(e)}"
-
-    # 기존 함수 수정 버전
-    def fetch_web_content_sso(url, timeout=10, login_config=None):
-        """SSO 대응 웹 콘텐츠 가져오기"""
-        scraper = SSOWebScraper()
-        
-        try:
-            # 로그인 필요 시 처리
-            if login_config:
-                if login_config.get('method') == 'selenium':
-                    success, message = scraper.selenium_login(
-                        login_config['login_url'],
-                        login_config['username'],
-                        login_config['password']
-                    )
-                else:
-                    success, message = scraper.login_with_credentials(
-                        login_config['login_url'],
-                        login_config['username'],
-                        login_config['password']
-                    )
-                
-                if not success:
-                    return f"⚠️ 로그인 실패: {message}"
-            
-            # 콘텐츠 가져오기
-            content, status = scraper.fetch_authenticated_content(url, timeout)
-            
-            if not content:
-                # Selenium으로 재시도
-                content, status = scraper.fetch_with_selenium(url)
-            
-            return content if content else f"⚠️ {status}"
-        
-        finally:
-            scraper.close()
-
-    def extract_equipment_info_enhanced(self, html_content, equipment_name):
-        """향상된 설비 정보 추출"""
-        try:
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            # JavaScript로 동적 생성된 콘텐츠도 포함
-            text_content = soup.get_text()
-            text_content = re.sub(r'\s+', ' ', text_content).strip()
-            
-            # 설비 정보 패턴 (더 다양한 패턴 추가)
-            equipment_patterns = [
-                rf'{equipment_name}.*?(?=\n|$)',
-                r'제원.*?(?=\n|제원|사양|규격)',
-                r'사양.*?(?=\n|제원|사양|규격)',
-                r'규격.*?(?=\n|제원|사양|규격)',
-                r'용량.*?(?=\n|용량|압력|온도)',
-                r'압력.*?(?=\n|용량|압력|온도)',
-                r'온도.*?(?=\n|용량|압력|온도)',
-                r'유량.*?(?=\n|유량|토출|흡입)',
-                r'모델.*?(?=\n|모델|제조사|년식)',
-                r'제조사.*?(?=\n|모델|제조사|년식)',
-            ]
-            
-            extracted_info = []
-            for pattern in equipment_patterns:
-                matches = re.findall(pattern, text_content, re.IGNORECASE | re.MULTILINE)
-                extracted_info.extend(matches)
-            
-            # 테이블 데이터 추출 (더 정교한 방식)
-            tables = soup.find_all('table')
-            table_data = []
-            for table in tables:
-                rows = table.find_all('tr')
-                for row in rows:
-                    cells = row.find_all(['td', 'th'])
-                    if len(cells) >= 2:
-                        row_text = ' | '.join([cell.get_text().strip() for cell in cells])
-                        if (equipment_name.lower() in row_text.lower() or 
-                            any(keyword in row_text.lower() for keyword in 
-                                ['제원', '사양', '규격', '용량', '압력', '온도', '유량', '모델', '제조사'])):
-                            table_data.append(row_text)
-            
-            # JSON 데이터 추출 시도 (AJAX 응답일 경우)
-            json_pattern = r'\{[^{}]*"' + equipment_name + r'"[^{}]*\}'
-            json_matches = re.findall(json_pattern, html_content, re.IGNORECASE)
-            json_data = []
-            for match in json_matches:
-                try:
-                    parsed_json = json.loads(match)
-                    json_data.append(str(parsed_json))
-                except:
-                    continue
-            
-            # 결과 조합
-            result = []
-            if extracted_info:
-                result.extend(extracted_info[:10])
-            if table_data:
-                result.extend(table_data[:5])
-            if json_data:
-                result.extend(json_data[:3])
-            
-            return '\n'.join(result) if result else None
-        
-        except Exception as e:
-            return f"정보 추출 중 오류: {str(e)}"
-    
-    def close(self):
-        """리소스 정리"""
-        if self.driver:
-            self.driver.quit()
-        self.session.close()
-
-GEMINI_API_KEY = st.secrets["chatbot"]["gemini_api_key"]
-genai.configure(api_key=GEMINI_API_KEY)
-@st.cache_resource
-def init_chatbot():
-    """챗봇 모델 초기화"""
-    try:
-        model = genai.GenerativeModel('gemma-3n-e4b-it')
-        return model
-    except Exception as e:
-        st.error(f"챗봇 초기화 실패: {str(e)}")
-        return None
-
-# 개선된 챗봇 응답 생성 함수 (기존 함수 수정)
-def get_chatbot_response(message, context=""):
-    """챗봇 응답 생성 (웹 스크래핑 기능 포함)"""
-    model = init_chatbot()
-    if not model:
-        return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
-    
-    try:
-        # 현재 사용자의 모든 링크 데이터 수집
-        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
-        
-        # 설비 정보 요청인지 확인
-        equipment_info_request = False
-        equipment_name = None
-        
-        # 설비 정보 요청 패턴 확인
-        info_patterns = [
-            r'(.+?)\s*제원\s*알려줘',
-            r'(.+?)\s*정보\s*알려줘',
-            r'(.+?)\s*사양\s*알려줘',
-            r'(.+?)\s*규격\s*알려줘',
-            r'(.+?)\s*데이터\s*보여줘',
-            r'(.+?)\s*에\s*대해\s*알려줘',
-        ]
-        
-        for pattern in info_patterns:
-            match = re.search(pattern, message, re.IGNORECASE)
-            if match:
-                equipment_name = match.group(1).strip()
-                equipment_info_request = True
-                break
-        
-        # 웹 스크래핑을 통한 설비 정보 수집
-        web_content_info = ""
-        if equipment_info_request and equipment_name:
-            # 관련 링크 찾기
-            found_links = find_equipment_link(equipment_name, current_user_sites)
-            
-            if found_links:
-                st.info(f"🔍 {equipment_name} 관련 링크를 찾았습니다. 정보를 가져오는 중...")
-                
-                for i, link_info in enumerate(found_links[:3]):  # 최대 3개 링크만 확인
-                    with st.spinner(f"📡 {link_info['description']} 정보 수집 중... ({i+1}/{min(3, len(found_links))})"):
-                        html_content = fetch_web_content(link_info['url'])
-                        
-                        if not html_content.startswith("⚠️"):  # 오류가 아닌 경우
-                            extracted_info = extract_equipment_info(html_content, equipment_name)
-                            if extracted_info:
-                                web_content_info += f"\n\n📋 **{link_info['description']}에서 수집한 정보:**\n{extracted_info}\n"
-                        else:
-                            web_content_info += f"\n⚠️ {link_info['description']}: {html_content}\n"
-                        
-                        time.sleep(1)  # 서버 부하 방지
-            else:
-                web_content_info = f"\n⚠️ '{equipment_name}'과 관련된 링크를 찾을 수 없습니다."
-        
-        # 링크 데이터를 텍스트 형태로 변환
-        links_info = []
-        for tab_name, tab_data in current_user_sites.items():
-            links_info.append(f"탭명: {tab_name}")
-            for i, link in enumerate(tab_data.get("links", [])):
-                description = link.get("description", "")
-                url = link.get("url", "")
-                is_favorite = "⭐" if link.get("favorite", False) else ""
-                
-                # AIH 설비 링크인지 판단
-                is_aih = "http://aih.e1.co.kr" in url
-                base_location = ""
-                if is_aih:
-                    if "DS%7C" in url:
-                        base_location = "대산"
-                    elif "IC%7C" in url:
-                        base_location = "인천"
-                    elif "YS%7C" in url:
-                        base_location = "여수"
-                
-                links_info.append(f"  - {description} ({url}) {is_favorite} {'[AIH설비-' + base_location + ']' if is_aih else ''}")
-        
-        links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
-        
-        # 시스템 프롬프트 설정
-        system_prompt = f"""
-        당신은 E1 Link 시스템의 AI 어시스턴트입니다.
-        사용자가 시스템 사용법이나 설비 관련 질문을 할 때 도움을 제공하세요.
-        
-        현재 사용자 정보:
-        - 팀: {st.session_state.get('team', '알 수 없음')}
-        - 사용자: {st.session_state.get('user_id', '알 수 없음')}
-        
-        사용자가 등록한 링크 정보:
-        {links_text}
-        
-        {web_content_info if web_content_info else ""}
-        
-        사용자가 다음과 같은 질문을 할 수 있습니다:
-        - "AIH 설비 링크를 모두 모아줘"
-        - "P-501A 제원 알려줘" (웹에서 정보 수집)
-        - "펌프 설비 모두 모아줘"
-        - "인천 지역 설비 모아줘"
-        - "~~ 탭의 링크 리스트 보여줘"
-        - "즐겨찾기한 링크들 보여줘"
-        
-        설비 정보 요청의 경우, 웹에서 수집한 정보를 바탕으로 상세하게 답변해주세요.
-        수집된 정보가 있다면 이를 정리하여 사용자가 이해하기 쉽게 설명해주세요.
-        
-        {context}
-        
-        한국어로 친근하고 도움이 되는 답변을 제공해주세요.
-        """
-        
-        full_prompt = f"{system_prompt}\n\n사용자 질문: {message}"
-        response = model.generate_content(full_prompt)
-        
-        # 응답 후처리 - 링크 정보 강화 (기존 함수와 동일)
-        if not equipment_info_request:  # 설비 정보 요청이 아닌 경우만 기존 링크 필터링 적용
-            processed_response = enhance_response_with_links(response.text, message, current_user_sites)
-        else:
-            processed_response = response.text
-        
-        return processed_response
-    
-    except Exception as e:
-        return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
-        
-def enhance_response_with_links(response, user_message, user_sites):
-    """응답에 링크 정보를 추가로 강화"""
-    message_lower = user_message.lower()
-    
-    # 특정 키워드 기반 링크 필터링
-    if any(keyword in message_lower for keyword in ["aih", "설비"]):
-        aih_links = []
-        for tab_name, tab_data in user_sites.items():
-            for link in tab_data.get("links", []):
-                if "aih.e1.co.kr" in link.get("url", ""):
-                    base = ""
-                    if "DS%7C" in link["url"]:
-                        base = "대산"
-                    elif "IC%7C" in link["url"]:
-                        base = "인천"
-                    elif "YS%7C" in link["url"]:
-                        base = "여수"
-                    
-                    fav = "⭐" if link.get("favorite", False) else ""
-                    aih_links.append(f"📌 {link['description']} - {base}기지 {fav}\n   🔗 {link['url']} (탭: {tab_name})")
-        
-        if aih_links:
-            response += f"\n\n🔧 **AIH 설비 링크 목록:**\n" + "\n\n".join(aih_links)
-    
-    # 지역별 필터링
-    if any(region in message_lower for region in ["대산", "인천", "여수"]):
-        region_map = {"대산": "DS%7C", "인천": "IC%7C", "여수": "YS%7C"}
-        target_region = None
-        for region, code in region_map.items():
-            if region in message_lower:
-                target_region = region
-                target_code = code
-                break
-        
-        if target_region:
-            region_links = []
-            for tab_name, tab_data in user_sites.items():
-                for link in tab_data.get("links", []):
-                    if target_code in link.get("url", ""):
-                        fav = "⭐" if link.get("favorite", False) else ""
-                        region_links.append(f"📌 {link['description']} {fav}\n   🔗 {link['url']} (탭: {tab_name})")
-            
-            if region_links:
-                response += f"\n\n🏭 **{target_region} 지역 설비 링크:**\n" + "\n\n".join(region_links)
-    
-    # 탭별 링크 조회
-    if "탭" in message_lower and ("링크" in message_lower or "리스트" in message_lower):
-        for tab_name in user_sites.keys():
-            if tab_name.lower() in message_lower or tab_name in message_lower:
-                tab_links = []
-                for link in user_sites[tab_name].get("links", []):
-                    fav = "⭐" if link.get("favorite", False) else ""
-                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
-                    tab_links.append(f"📌 {link['description']} {fav} {is_aih}\n   🔗 {link['url']}")
-                
-                if tab_links:
-                    response += f"\n\n📁 **{tab_name} 탭의 링크 목록:**\n" + "\n\n".join(tab_links)
-                break
-    
-    # 즐겨찾기 링크 조회
-    if "즐겨찾기" in message_lower:
-        favorite_links = []
-        for tab_name, tab_data in user_sites.items():
-            for link in tab_data.get("links", []):
-                if link.get("favorite", False):
-                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
-                    favorite_links.append(f"📌 {link['description']} ⭐ {is_aih}\n   🔗 {link['url']} (탭: {tab_name})")
-        
-        if favorite_links:
-            response += f"\n\n⭐ **즐겨찾기 링크 목록:**\n" + "\n\n".join(favorite_links)
-    
-    # 펌프 관련 링크 조회
-    if "펌프" in message_lower:
-        pump_links = []
-        for tab_name, tab_data in user_sites.items():
-            for link in tab_data.get("links", []):
-                if "펌프" in link.get("description", "").lower() or "pump" in link.get("description", "").lower() or "p-" in link.get("description", "").lower():
-                    fav = "⭐" if link.get("favorite", False) else ""
-                    base = ""
-                    if "aih.e1.co.kr" in link.get("url", ""):
-                        if "DS%7C" in link["url"]:
-                            base = "대산"
-                        elif "IC%7C" in link["url"]:
-                            base = "인천"
-                        elif "YS%7C" in link["url"]:
-                            base = "여수"
-                    
-                    pump_links.append(f"📌 {link['description']} {fav} {f'[{base}기지]' if base else ''}\n   🔗 {link['url']} (탭: {tab_name})")
-        
-        if pump_links:
-            response += f"\n\n🔧 **펌프 설비 링크 목록:**\n" + "\n\n".join(pump_links)
-    
-    return response
-
 # ---- 페이지 설정 ----
 st.set_page_config(
     page_title="E1 Link - AIH Portal Hub",
@@ -1360,6 +616,665 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+# SSL 인증서 검증 비활성화
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+class SSOWebScraper:
+    def __init__(self):
+        self.session = requests.Session()
+        self.driver = None
+        self.setup_session()
+    
+    def setup_session(self):
+        """세션 초기 설정"""
+        self.session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        })
+    
+    def login_with_credentials(self, login_url, username, password, username_field='username', password_field='password'):
+        """폼 기반 로그인 시도"""
+        try:
+            # 로그인 페이지 접근
+            response = self.session.get(login_url, verify=False)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # CSRF 토큰 찾기
+            csrf_token = None
+            csrf_input = soup.find('input', {'name': re.compile(r'csrf|token|_token', re.I)})
+            if csrf_input:
+                csrf_token = csrf_input.get('value')
+            
+            # 로그인 폼 데이터 준비
+            login_data = {
+                username_field: username,
+                password_field: password
+            }
+            
+            if csrf_token:
+                login_data[csrf_input.get('name')] = csrf_token
+            
+            # 로그인 시도
+            login_response = self.session.post(login_url, data=login_data, verify=False)
+            
+            # 로그인 성공 여부 확인 (리다이렉션 또는 특정 텍스트 확인)
+            if login_response.status_code == 200 and 'login' not in login_response.url.lower():
+                return True, "로그인 성공"
+            else:
+                return False, "로그인 실패"
+        
+        except Exception as e:
+            return False, f"로그인 오류: {str(e)}"
+    
+    def setup_selenium_driver(self, headless=True):
+        """Selenium WebDriver 설정"""
+        try:
+            chrome_options = Options()
+            if headless:
+                chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
+            chrome_options.add_argument('--window-size=1920,1080')
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')
+            
+            self.driver = webdriver.Chrome(options=chrome_options)
+            return True
+        except Exception as e:
+            print(f"Selenium 드라이버 설정 오류: {str(e)}")
+            return False
+    
+    def selenium_login(self, login_url, username, password, username_selector='input[name="username"]', password_selector='input[name="password"]', submit_selector='button[type="submit"]'):
+        """Selenium을 사용한 로그인"""
+        try:
+            if not self.driver:
+                if not self.setup_selenium_driver():
+                    return False, "Selenium 드라이버 설정 실패"
+            
+            self.driver.get(login_url)
+            
+            # 로그인 폼 요소 대기
+            wait = WebDriverWait(self.driver, 10)
+            
+            username_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, username_selector)))
+            password_input = self.driver.find_element(By.CSS_SELECTOR, password_selector)
+            submit_button = self.driver.find_element(By.CSS_SELECTOR, submit_selector)
+            
+            # 로그인 정보 입력
+            username_input.clear()
+            username_input.send_keys(username)
+            password_input.clear()
+            password_input.send_keys(password)
+            
+            # 로그인 버튼 클릭
+            submit_button.click()
+            
+            # 로그인 완료 대기 (URL 변경 또는 특정 요소 나타남)
+            time.sleep(3)
+            
+            # 세션 쿠키를 requests 세션으로 복사
+            cookies = self.driver.get_cookies()
+            for cookie in cookies:
+                self.session.cookies.set(cookie['name'], cookie['value'])
+            
+            return True, "Selenium 로그인 성공"
+        
+        except Exception as e:
+            return False, f"Selenium 로그인 오류: {str(e)}"
+    
+    def fetch_authenticated_content(self, url, timeout=10):
+        """인증된 세션으로 콘텐츠 가져오기"""
+        try:
+            response = self.session.get(url, timeout=timeout, verify=False)
+            response.raise_for_status()
+            
+            # 로그인 리다이렉션 확인
+            if 'login' in response.url.lower() or 'signin' in response.url.lower():
+                return None, "인증이 필요합니다"
+            
+            if response.encoding is None:
+                response.encoding = 'utf-8'
+            
+            return response.text, "성공"
+        
+        except requests.exceptions.Timeout:
+            return None, f"타임아웃: {url}"
+        except requests.exceptions.ConnectionError:
+            return None, f"연결 오류: {url}"
+        except requests.exceptions.HTTPError as e:
+            return None, f"HTTP 오류: {e}"
+        except Exception as e:
+            return None, f"오류: {str(e)}"
+    
+    def fetch_with_selenium(self, url, wait_for_element=None, timeout=10):
+        """Selenium으로 JavaScript 렌더링된 콘텐츠 가져오기"""
+        try:
+            if not self.driver:
+                if not self.setup_selenium_driver():
+                    return None, "Selenium 드라이버 설정 실패"
+            
+            self.driver.get(url)
+            
+            # 특정 요소 대기 (선택사항)
+            if wait_for_element:
+                wait = WebDriverWait(self.driver, timeout)
+                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, wait_for_element)))
+            else:
+                time.sleep(2)  # 기본 대기
+            
+            return self.driver.page_source, "성공"
+        
+        except Exception as e:
+            return None, f"Selenium 페이지 로드 오류: {str(e)}"
+
+    # 기존 함수 수정 버전
+    def fetch_web_content_sso(url, timeout=10, login_config=None):
+        """SSO 대응 웹 콘텐츠 가져오기"""
+        scraper = SSOWebScraper()
+        
+        try:
+            # 로그인 필요 시 처리
+            if login_config:
+                if login_config.get('method') == 'selenium':
+                    success, message = scraper.selenium_login(
+                        login_config['login_url'],
+                        login_config['username'],
+                        login_config['password']
+                    )
+                else:
+                    success, message = scraper.login_with_credentials(
+                        login_config['login_url'],
+                        login_config['username'],
+                        login_config['password']
+                    )
+                
+                if not success:
+                    return f"⚠️ 로그인 실패: {message}"
+            
+            # 콘텐츠 가져오기
+            content, status = scraper.fetch_authenticated_content(url, timeout)
+            
+            if not content:
+                # Selenium으로 재시도
+                content, status = scraper.fetch_with_selenium(url)
+            
+            return content if content else f"⚠️ {status}"
+        
+        finally:
+            scraper.close()
+
+    def extract_equipment_info_enhanced(self, html_content, equipment_name):
+        """향상된 설비 정보 추출"""
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            
+            # JavaScript로 동적 생성된 콘텐츠도 포함
+            text_content = soup.get_text()
+            text_content = re.sub(r'\s+', ' ', text_content).strip()
+            
+            # 설비 정보 패턴 (더 다양한 패턴 추가)
+            equipment_patterns = [
+                rf'{equipment_name}.*?(?=\n|$)',
+                r'제원.*?(?=\n|제원|사양|규격)',
+                r'사양.*?(?=\n|제원|사양|규격)',
+                r'규격.*?(?=\n|제원|사양|규격)',
+                r'용량.*?(?=\n|용량|압력|온도)',
+                r'압력.*?(?=\n|용량|압력|온도)',
+                r'온도.*?(?=\n|용량|압력|온도)',
+                r'유량.*?(?=\n|유량|토출|흡입)',
+                r'모델.*?(?=\n|모델|제조사|년식)',
+                r'제조사.*?(?=\n|모델|제조사|년식)',
+            ]
+            
+            extracted_info = []
+            for pattern in equipment_patterns:
+                matches = re.findall(pattern, text_content, re.IGNORECASE | re.MULTILINE)
+                extracted_info.extend(matches)
+            
+            # 테이블 데이터 추출 (더 정교한 방식)
+            tables = soup.find_all('table')
+            table_data = []
+            for table in tables:
+                rows = table.find_all('tr')
+                for row in rows:
+                    cells = row.find_all(['td', 'th'])
+                    if len(cells) >= 2:
+                        row_text = ' | '.join([cell.get_text().strip() for cell in cells])
+                        if (equipment_name.lower() in row_text.lower() or 
+                            any(keyword in row_text.lower() for keyword in 
+                                ['제원', '사양', '규격', '용량', '압력', '온도', '유량', '모델', '제조사'])):
+                            table_data.append(row_text)
+            
+            # JSON 데이터 추출 시도 (AJAX 응답일 경우)
+            json_pattern = r'\{[^{}]*"' + equipment_name + r'"[^{}]*\}'
+            json_matches = re.findall(json_pattern, html_content, re.IGNORECASE)
+            json_data = []
+            for match in json_matches:
+                try:
+                    parsed_json = json.loads(match)
+                    json_data.append(str(parsed_json))
+                except:
+                    continue
+            
+            # 결과 조합
+            result = []
+            if extracted_info:
+                result.extend(extracted_info[:10])
+            if table_data:
+                result.extend(table_data[:5])
+            if json_data:
+                result.extend(json_data[:3])
+            
+            return '\n'.join(result) if result else None
+        
+        except Exception as e:
+            return f"정보 추출 중 오류: {str(e)}"
+    
+    def close(self):
+        """리소스 정리"""
+        if self.driver:
+            self.driver.quit()
+        self.session.close()
+
+GEMINI_API_KEY = st.secrets["chatbot"]["gemini_api_key"]
+genai.configure(api_key=GEMINI_API_KEY)
+@st.cache_resource
+def init_chatbot():
+    """챗봇 모델 초기화"""
+    try:
+        model = genai.GenerativeModel('gemma-3n-e4b-it')
+        return model
+    except Exception as e:
+        st.error(f"챗봇 초기화 실패: {str(e)}")
+        return None
+
+# 개선된 챗봇 응답 생성 함수 (기존 함수 수정)
+def get_chatbot_response(message, context=""):
+    """챗봇 응답 생성 (웹 스크래핑 기능 포함)"""
+    model = init_chatbot()
+    if not model:
+        return "챗봇 서비스를 사용할 수 없습니다. 관리자에게 문의해주세요."
+    
+    try:
+        # 현재 사용자의 모든 링크 데이터 수집
+        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+        
+        # 설비 정보 요청인지 확인
+        equipment_info_request = False
+        equipment_name = None
+        
+        # 설비 정보 요청 패턴 확인
+        info_patterns = [
+            r'(.+?)\s*제원\s*알려줘',
+            r'(.+?)\s*정보\s*알려줘',
+            r'(.+?)\s*사양\s*알려줘',
+            r'(.+?)\s*규격\s*알려줘',
+            r'(.+?)\s*데이터\s*보여줘',
+            r'(.+?)\s*에\s*대해\s*알려줘',
+        ]
+        
+        for pattern in info_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                equipment_name = match.group(1).strip()
+                equipment_info_request = True
+                break
+        
+        # 웹 스크래핑을 통한 설비 정보 수집
+        web_content_info = ""
+        if equipment_info_request and equipment_name:
+            # 관련 링크 찾기
+            found_links = find_equipment_link(equipment_name, current_user_sites)
+            
+            if found_links:
+                st.info(f"🔍 {equipment_name} 관련 링크를 찾았습니다. 정보를 가져오는 중...")
+                
+                for i, link_info in enumerate(found_links[:3]):  # 최대 3개 링크만 확인
+                    with st.spinner(f"📡 {link_info['description']} 정보 수집 중... ({i+1}/{min(3, len(found_links))})"):
+                        html_content = fetch_web_content(link_info['url'])
+                        
+                        if not html_content.startswith("⚠️"):  # 오류가 아닌 경우
+                            extracted_info = extract_equipment_info(html_content, equipment_name)
+                            if extracted_info:
+                                web_content_info += f"\n\n📋 **{link_info['description']}에서 수집한 정보:**\n{extracted_info}\n"
+                        else:
+                            web_content_info += f"\n⚠️ {link_info['description']}: {html_content}\n"
+                        
+                        time.sleep(1)  # 서버 부하 방지
+            else:
+                web_content_info = f"\n⚠️ '{equipment_name}'과 관련된 링크를 찾을 수 없습니다."
+        
+        # 링크 데이터를 텍스트 형태로 변환
+        links_info = []
+        for tab_name, tab_data in current_user_sites.items():
+            links_info.append(f"탭명: {tab_name}")
+            for i, link in enumerate(tab_data.get("links", [])):
+                description = link.get("description", "")
+                url = link.get("url", "")
+                is_favorite = "⭐" if link.get("favorite", False) else ""
+                
+                # AIH 설비 링크인지 판단
+                is_aih = "http://aih.e1.co.kr" in url
+                base_location = ""
+                if is_aih:
+                    if "DS%7C" in url:
+                        base_location = "대산"
+                    elif "IC%7C" in url:
+                        base_location = "인천"
+                    elif "YS%7C" in url:
+                        base_location = "여수"
+                
+                links_info.append(f"  - {description} ({url}) {is_favorite} {'[AIH설비-' + base_location + ']' if is_aih else ''}")
+        
+        links_text = "\n".join(links_info) if links_info else "등록된 링크가 없습니다."
+        
+        # 시스템 프롬프트 설정
+        system_prompt = f"""
+        당신은 E1 Link 시스템의 AI 어시스턴트입니다.
+        사용자가 시스템 사용법이나 설비 관련 질문을 할 때 도움을 제공하세요.
+        
+        현재 사용자 정보:
+        - 팀: {st.session_state.get('team', '알 수 없음')}
+        - 사용자: {st.session_state.get('user_id', '알 수 없음')}
+        
+        사용자가 등록한 링크 정보:
+        {links_text}
+        
+        {web_content_info if web_content_info else ""}
+        
+        사용자가 다음과 같은 질문을 할 수 있습니다:
+        - "AIH 설비 링크를 모두 모아줘"
+        - "P-501A 제원 알려줘" (웹에서 정보 수집)
+        - "펌프 설비 모두 모아줘"
+        - "인천 지역 설비 모아줘"
+        - "~~ 탭의 링크 리스트 보여줘"
+        - "즐겨찾기한 링크들 보여줘"
+        
+        설비 정보 요청의 경우, 웹에서 수집한 정보를 바탕으로 상세하게 답변해주세요.
+        수집된 정보가 있다면 이를 정리하여 사용자가 이해하기 쉽게 설명해주세요.
+        
+        {context}
+        
+        한국어로 친근하고 도움이 되는 답변을 제공해주세요.
+        """
+        
+        full_prompt = f"{system_prompt}\n\n사용자 질문: {message}"
+        response = model.generate_content(full_prompt)
+        
+        # 응답 후처리 - 링크 정보 강화 (기존 함수와 동일)
+        if not equipment_info_request:  # 설비 정보 요청이 아닌 경우만 기존 링크 필터링 적용
+            processed_response = enhance_response_with_links(response.text, message, current_user_sites)
+        else:
+            processed_response = response.text
+        
+        return processed_response
+    
+    except Exception as e:
+        return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
+        
+def enhance_response_with_links(response, user_message, user_sites):
+    """응답에 링크 정보를 추가로 강화"""
+    message_lower = user_message.lower()
+    
+    # 특정 키워드 기반 링크 필터링
+    if any(keyword in message_lower for keyword in ["aih", "설비"]):
+        aih_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if "aih.e1.co.kr" in link.get("url", ""):
+                    base = ""
+                    if "DS%7C" in link["url"]:
+                        base = "대산"
+                    elif "IC%7C" in link["url"]:
+                        base = "인천"
+                    elif "YS%7C" in link["url"]:
+                        base = "여수"
+                    
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    aih_links.append(f"📌 {link['description']} - {base}기지 {fav}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if aih_links:
+            response += f"\n\n🔧 **AIH 설비 링크 목록:**\n" + "\n\n".join(aih_links)
+    
+    # 지역별 필터링
+    if any(region in message_lower for region in ["대산", "인천", "여수"]):
+        region_map = {"대산": "DS%7C", "인천": "IC%7C", "여수": "YS%7C"}
+        target_region = None
+        for region, code in region_map.items():
+            if region in message_lower:
+                target_region = region
+                target_code = code
+                break
+        
+        if target_region:
+            region_links = []
+            for tab_name, tab_data in user_sites.items():
+                for link in tab_data.get("links", []):
+                    if target_code in link.get("url", ""):
+                        fav = "⭐" if link.get("favorite", False) else ""
+                        region_links.append(f"📌 {link['description']} {fav}\n   🔗 {link['url']} (탭: {tab_name})")
+            
+            if region_links:
+                response += f"\n\n🏭 **{target_region} 지역 설비 링크:**\n" + "\n\n".join(region_links)
+    
+    # 탭별 링크 조회
+    if "탭" in message_lower and ("링크" in message_lower or "리스트" in message_lower):
+        for tab_name in user_sites.keys():
+            if tab_name.lower() in message_lower or tab_name in message_lower:
+                tab_links = []
+                for link in user_sites[tab_name].get("links", []):
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
+                    tab_links.append(f"📌 {link['description']} {fav} {is_aih}\n   🔗 {link['url']}")
+                
+                if tab_links:
+                    response += f"\n\n📁 **{tab_name} 탭의 링크 목록:**\n" + "\n\n".join(tab_links)
+                break
+    
+    # 즐겨찾기 링크 조회
+    if "즐겨찾기" in message_lower:
+        favorite_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if link.get("favorite", False):
+                    is_aih = "[AIH설비]" if "aih.e1.co.kr" in link.get("url", "") else ""
+                    favorite_links.append(f"📌 {link['description']} ⭐ {is_aih}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if favorite_links:
+            response += f"\n\n⭐ **즐겨찾기 링크 목록:**\n" + "\n\n".join(favorite_links)
+    
+    # 펌프 관련 링크 조회
+    if "펌프" in message_lower:
+        pump_links = []
+        for tab_name, tab_data in user_sites.items():
+            for link in tab_data.get("links", []):
+                if "펌프" in link.get("description", "").lower() or "pump" in link.get("description", "").lower() or "p-" in link.get("description", "").lower():
+                    fav = "⭐" if link.get("favorite", False) else ""
+                    base = ""
+                    if "aih.e1.co.kr" in link.get("url", ""):
+                        if "DS%7C" in link["url"]:
+                            base = "대산"
+                        elif "IC%7C" in link["url"]:
+                            base = "인천"
+                        elif "YS%7C" in link["url"]:
+                            base = "여수"
+                    
+                    pump_links.append(f"📌 {link['description']} {fav} {f'[{base}기지]' if base else ''}\n   🔗 {link['url']} (탭: {tab_name})")
+        
+        if pump_links:
+            response += f"\n\n🔧 **펌프 설비 링크 목록:**\n" + "\n\n".join(pump_links)
+    
+    return response
+
+# 플로팅 챗봇 컴포넌트
+def render_floating_chatbot():
+    # 챗봇 상태 초기화
+    if 'chatbot_open' not in st.session_state:
+        st.session_state.chatbot_open = False
+    if 'chatbot_messages' not in st.session_state:
+        st.session_state.chatbot_messages = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+        ]
+    
+    # 플로팅 버튼 HTML
+    chatbot_button_class = "floating-chatbot active" if st.session_state.chatbot_open else "floating-chatbot"
+    chatbot_icon = "✕" if st.session_state.chatbot_open else "🤖"
+    
+    # 현재 사용자 통계
+    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    total_aih_links = sum(
+        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
+        for tab_data in current_user_sites.values()
+    )
+    
+    # 챗봇 HTML 생성
+    chatbot_html = f"""
+    <div id="floating-chatbot-container">
+        <button class="{chatbot_button_class}" onclick="toggleChatbot()">
+            {chatbot_icon}
+        </button>
+        
+        {"<div class='chatbot-popup' id='chatbot-popup'>" if st.session_state.chatbot_open else ""}
+            {"<div class='chatbot-header'>" if st.session_state.chatbot_open else ""}
+                {"<div class='chatbot-title'>" if st.session_state.chatbot_open else ""}
+                    {"🤖 AI 어시스턴트" if st.session_state.chatbot_open else ""}
+                {"</div>" if st.session_state.chatbot_open else ""}
+                {"<button class='chatbot-close' onclick='toggleChatbot()'>✕</button>" if st.session_state.chatbot_open else ""}
+            {"</div>" if st.session_state.chatbot_open else ""}
+            
+            {"<div class='chatbot-messages' id='chatbot-messages'>" if st.session_state.chatbot_open else ""}
+    """
+    
+    # 메시지 렌더링
+    if st.session_state.chatbot_open:
+        for msg in st.session_state.chatbot_messages:
+            role_class = "user" if msg["role"] == "user" else "assistant"
+            chatbot_html += f"""
+                <div class='chatbot-message {role_class}'>
+                    <div class='message-bubble {role_class}'>
+                        {msg["content"]}
+                    </div>
+                </div>
+            """
+    
+    chatbot_html += f"""
+            {"</div>" if st.session_state.chatbot_open else ""}
+        {"</div>" if st.session_state.chatbot_open else ""}
+    </div>
+    
+    <script>
+        function toggleChatbot() {{
+            const isOpen = {str(st.session_state.chatbot_open).lower()};
+            if (isOpen) {{
+                window.parent.postMessage({{
+                    type: 'streamlit:setComponentValue',
+                    key: 'chatbot_toggle',
+                    value: 'close'
+                }}, '*');
+            }} else {{
+                window.parent.postMessage({{
+                    type: 'streamlit:setComponentValue', 
+                    key: 'chatbot_toggle',
+                    value: 'open'
+                }}, '*');
+            }}
+        }}
+        
+        // 메시지가 추가될 때마다 스크롤을 아래로
+        const messagesContainer = document.getElementById('chatbot-messages');
+        if (messagesContainer) {{
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }}
+    </script>
+    """
+    
+    st.components.v1.html(chatbot_html, height=0)
+    
+    # 챗봇 토글 처리
+    chatbot_toggle = st.session_state.get('chatbot_toggle_value', None)
+    if chatbot_toggle == 'open' and not st.session_state.chatbot_open:
+        st.session_state.chatbot_open = True
+        st.rerun()
+    elif chatbot_toggle == 'close' and st.session_state.chatbot_open:
+        st.session_state.chatbot_open = False
+        st.rerun()
+    
+    # 챗봇이 열려있을 때 입력 영역 표시
+    if st.session_state.chatbot_open:
+        st.markdown("""
+            <div style="position: fixed; bottom: 170px; right: 30px; width: 380px; z-index: 1003;">
+                <div style="background: white; padding: 1rem; border-top: 1px solid #e2e8f0; border-radius: 0 0 15px 15px;">
+        """, unsafe_allow_html=True)
+        
+        # 입력 컨테이너
+        input_container = st.container()
+        with input_container:
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                user_input = st.text_input(
+                    "",
+                    key="floating_chat_input",
+                    placeholder="메시지를 입력하세요...",
+                    label_visibility="collapsed"
+                )
+            
+            with col2:
+                send_button = st.button("🚀", key="floating_send_btn", use_container_width=True)
+        
+        st.markdown("</div></div>", unsafe_allow_html=True)
+        
+        # 엔터키 처리를 위한 JavaScript
+        st.components.v1.html("""
+            <script>
+                const input = window.parent.document.querySelector('[data-testid="stTextInput"] input');
+                if (input) {
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const sendBtn = window.parent.document.querySelector('[data-testid="stButton"] button');
+                            if (sendBtn) {
+                                sendBtn.click();
+                            }
+                        }
+                    });
+                }
+            </script>
+        """, height=0)
+        
+        # 메시지 전송 처리
+        if (send_button or user_input) and user_input.strip():
+            # 사용자 메시지 추가
+            st.session_state.chatbot_messages.append({
+                "role": "user",
+                "content": user_input
+            })
+            
+            # 컨텍스트 정보
+            context = f"""
+            현재 페이지: {st.session_state.get('current_page', '홈')}
+            사용자 탭 수: {len(current_user_sites)}
+            총 링크 수: {total_links}
+            AIH 설비 링크 수: {total_aih_links}
+            """
+            
+            # AI 응답 생성 (실제 함수로 교체 필요)
+            bot_response = get_chatbot_response(user_input, context)
+            
+            # 봇 응답 추가
+            st.session_state.chatbot_messages.append({
+                "role": "assistant",
+                "content": bot_response
+            })
+            
+            # 입력 필드 초기화
+            st.session_state.floating_chat_input = ""
+            st.rerun()
 
 # ---- 관리자 ID 및 설정 ----
 ADMIN_IDS = ["admin"]
