@@ -1708,6 +1708,56 @@ with st.sidebar:
                     delete_tab(tab_to_delete)
                     st.success(f"'{tab_to_delete}' 탭이 삭제되었습니다.")
                     st.rerun()
+
+            st.markdown("---")
+            st.markdown("### 🤖 AI 어시스턴트")
+            
+            # 챗봇 상태 확인
+            if st.button("챗봇 " + ("닫기" if st.session_state.get('chatbot_open', False) else "열기")):
+                st.session_state.chatbot_open = not st.session_state.get('chatbot_open', False)
+                st.rerun()
+        
+        # 플로팅 챗봇 렌더링
+        render_floating_chatbot()
+        
+        # 챗봇 상태 변경 처리
+        if 'chatbot_state_change' in st.session_state:
+            if st.session_state.chatbot_state_change == 'open':
+                st.session_state.chatbot_open = True
+            elif st.session_state.chatbot_state_change == 'close':
+                st.session_state.chatbot_open = False
+            del st.session_state.chatbot_state_change
+            st.rerun()
+        
+        # 챗봇 메시지 처리
+        if 'chatbot_new_message' in st.session_state:
+            user_message = st.session_state.chatbot_new_message
+            
+            # 사용자 메시지 추가
+            if 'chatbot_messages' not in st.session_state:
+                st.session_state.chatbot_messages = []
+            
+            st.session_state.chatbot_messages.append({
+                "role": "user",
+                "content": user_message
+            })
+            
+            # AI 응답 생성
+            try:
+                bot_response = get_chatbot_response(user_message, "")
+                st.session_state.chatbot_messages.append({
+                    "role": "assistant",
+                    "content": bot_response
+                })
+            except Exception as e:
+                st.session_state.chatbot_messages.append({
+                    "role": "assistant",
+                    "content": f"죄송합니다. 오류가 발생했습니다: {str(e)}"
+                })
+            
+            del st.session_state.chatbot_new_message
+            st.rerun()
+
     
     if st.button("🚪 로그아웃", use_container_width=True):
         st.session_state.authenticated = False
