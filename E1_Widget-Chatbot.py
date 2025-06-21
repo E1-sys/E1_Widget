@@ -728,7 +728,7 @@ def get_chatbot_response(message, context=""):
         
         response = model.chat.completions.create(
             CHATBOT_MODEL = "gemma-3n-e4b-it",
-            model = genai.GenerativeModel(CHATBOT_MODEL)
+            model = genai.GenerativeModel(CHATBOT_MODEL),
             messages=messages,
             max_tokens=500,  # 플로팅 챗봇은 짧은 답변이 적합
             temperature=0.7
