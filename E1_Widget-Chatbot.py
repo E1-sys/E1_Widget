@@ -536,20 +536,24 @@ def render_chatbot_content():
     # 입력창 초기화를 위한 키 생성
     input_key = f"chatbot_input_{viewing_user_id}_{current_team}"
     
-    with col1:
-        # form을 사용하여 엔터 키 전송 지원
-        with st.form(key=f"chat_form_{viewing_user_id}_{current_team}", clear_on_submit=True):
+    # form을 사용하여 엔터 키 전송 지원
+    with st.form(key=f"chat_form_{viewing_user_id}_{current_team}", clear_on_submit=True):
+        col1, col2 = st.columns([4, 1])  # 입력창과 버튼 비율 조정
+        
+        with col1:
             user_input = st.text_input(
-                "메시지 입력...", 
+                "메시지 입력...",
                 placeholder="예: 인천 지역 설비 모아줘",
                 label_visibility="collapsed",
                 key=f"chat_input_{viewing_user_id}_{current_team}"
             )
-            # 숨겨진 submit 버튼 (엔터키로 전송)
-            form_submit = st.form_submit_button("전송", key=f"chatbot_send_{viewing_user_id}_{current_team}", use_container_width=True)
+        
+        with col2:
+            # form 내부의 submit 버튼 (엔터키와 클릭 모두 지원)
+            form_submit = st.form_submit_button("전송", use_container_width=True)
     
-    # 전송 처리 (form 제출 또는 버튼 클릭)
-    if (form_submit) and user_input and user_input.strip():
+    # 전송 처리
+    if form_submit and user_input and user_input.strip():
         handle_chatbot_message(user_input.strip())
         st.rerun()
     
