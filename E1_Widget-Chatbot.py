@@ -297,7 +297,7 @@ st.markdown("""
         .floating-chatbot-container {
             position: fixed;
             bottom: 30px;
-            right: 30px;
+            left: 30px;
             z-index: 1000;
         }
         
@@ -747,7 +747,7 @@ def render_floating_chatbot():
     .floating-chat-button {
         position: fixed;
         bottom: 20px;
-        right: 20px;
+        left: 20px;
         z-index: 1000;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         border: none;
@@ -767,7 +767,7 @@ def render_floating_chatbot():
     .floating-chat-window {
         position: fixed;
         bottom: 90px;
-        right: 20px;
+        left: 20px;
         width: 350px;
         height: 500px;
         background: white;
