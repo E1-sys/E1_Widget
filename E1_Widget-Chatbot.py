@@ -1469,7 +1469,6 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 로그인 화면 ----
 if not st.session_state.authenticated:
-    render_floating_chatbot()
     st.markdown("""
         <div class="main-header">
             <h1>🔗 E1 Link</h1>
@@ -1657,6 +1656,7 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
+    render_floating_chatbot()
     # ---- 대시보드 페이지 ----
     st.markdown("""
         <div class="main-header">
