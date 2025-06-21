@@ -15,7 +15,7 @@ from urllib.parse import urljoin, urlparse
 import ssl
 import urllib3
 from selenium import webdriver
-from selenium.webdriver.common.by import By
+from selenium.webdriver.common.by import
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
@@ -1636,8 +1636,6 @@ with st.sidebar:
     selected_nav = st.radio("메뉴", nav_options, key="navigation")
     st.session_state.current_page = selected_nav.split(" ", 1)[1]  # 이모지 제거
 
-    render_floating_chatbot()
-
     st.markdown("---")
     # 사이드바에 검색 기능 추가
     with st.sidebar:
@@ -1747,6 +1745,7 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
+    render_floating_chatbot()
     # ---- 대시보드 페이지 ----
     st.markdown("""
         <div class="main-header">
