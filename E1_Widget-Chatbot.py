@@ -1112,6 +1112,8 @@ def enhance_response_with_links(response, user_message, user_sites):
 
 # 플로팅 챗봇 컴포넌트
 def render_floating_chatbot():
+    """플로팅 챗봇 렌더링 함수"""
+    
     # 챗봇 상태 초기화
     if 'chatbot_open' not in st.session_state:
         st.session_state.chatbot_open = False
@@ -1120,161 +1122,178 @@ def render_floating_chatbot():
             {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
         ]
     
-    # 플로팅 버튼 HTML
-    chatbot_button_class = "floating-chatbot active" if st.session_state.chatbot_open else "floating-chatbot"
-    chatbot_icon = "✕" if st.session_state.chatbot_open else "🤖"
+    # 전역 변수들이 정의되어 있는지 확인
+    try:
+        viewing_user_id = st.session_state.get('user_id', 'unknown')
+        current_team = st.session_state.get('team', 'unknown')
+        current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    except:
+        current_user_sites = {}
     
-    # 현재 사용자 통계
-    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    # 사용자 통계
     total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
     total_aih_links = sum(
         sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
         for tab_data in current_user_sites.values()
     )
     
-    # 챗봇 HTML 생성
+    # 플로팅 버튼 상태
+    chatbot_icon = "✕" if st.session_state.chatbot_open else "🤖"
+    popup_display = "block" if st.session_state.chatbot_open else "none"
+    
+    # 메시지 HTML 생성
+    messages_html = ""
+    for msg in st.session_state.chatbot_messages:
+        role_class = "user" if msg["role"] == "user" else "assistant"
+        messages_html += f"""
+            <div class='chatbot-message {role_class}'>
+                <div class='message-bubble {role_class}'>
+                    {msg["content"]}
+                </div>
+            </div>
+        """
+    
+    # 전체 챗봇 HTML
     chatbot_html = f"""
     <div id="floating-chatbot-container">
-        <button class="{chatbot_button_class}" onclick="toggleChatbot()">
+        <!-- 플로팅 버튼 -->
+        <button class="{'floating-chatbot active' if st.session_state.chatbot_open else 'floating-chatbot'}" 
+                onclick="toggleChatbot()" id="chatbot-toggle-btn">
             {chatbot_icon}
         </button>
         
-        {"<div class='chatbot-popup' id='chatbot-popup'>" if st.session_state.chatbot_open else ""}
-            {"<div class='chatbot-header'>" if st.session_state.chatbot_open else ""}
-                {"<div class='chatbot-title'>" if st.session_state.chatbot_open else ""}
-                    {"🤖 AI 어시스턴트" if st.session_state.chatbot_open else ""}
-                {"</div>" if st.session_state.chatbot_open else ""}
-                {"<button class='chatbot-close' onclick='toggleChatbot()'>✕</button>" if st.session_state.chatbot_open else ""}
-            {"</div>" if st.session_state.chatbot_open else ""}
-            
-            {"<div class='chatbot-messages' id='chatbot-messages'>" if st.session_state.chatbot_open else ""}
-    """
-    
-    # 메시지 렌더링
-    if st.session_state.chatbot_open:
-        for msg in st.session_state.chatbot_messages:
-            role_class = "user" if msg["role"] == "user" else "assistant"
-            chatbot_html += f"""
-                <div class='chatbot-message {role_class}'>
-                    <div class='message-bubble {role_class}'>
-                        {msg["content"]}
-                    </div>
+        <!-- 챗봇 팝업 -->
+        <div class='chatbot-popup' id='chatbot-popup' style='display: {popup_display};'>
+            <div class='chatbot-header'>
+                <div class='chatbot-title'>
+                    🤖 AI 어시스턴트
                 </div>
-            """
-    
-    chatbot_html += f"""
-            {"</div>" if st.session_state.chatbot_open else ""}
-        {"</div>" if st.session_state.chatbot_open else ""}
+                <button class='chatbot-close' onclick='toggleChatbot()'>✕</button>
+            </div>
+            
+            <div class='chatbot-messages' id='chatbot-messages'>
+                {messages_html}
+            </div>
+            
+            <div class='chatbot-input-area'>
+                <div class='chatbot-input-container'>
+                    <input type="text" class="chatbot-input" id="chatbot-input" 
+                           placeholder="메시지를 입력하세요..." 
+                           onkeypress="handleKeyPress(event)">
+                    <button class="chatbot-send-btn" onclick="sendMessage()" id="send-btn">
+                        ➤
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
+        // 챗봇 토글 함수
         function toggleChatbot() {{
-            const isOpen = {str(st.session_state.chatbot_open).lower()};
-            if (isOpen) {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue',
-                    key: 'chatbot_toggle',
-                    value: 'close'
-                }}, '*');
+            const currentState = {str(st.session_state.chatbot_open).lower()};
+            const popup = document.getElementById('chatbot-popup');
+            const btn = document.getElementById('chatbot-toggle-btn');
+            
+            if (currentState) {{
+                // 챗봇 닫기
+                popup.style.display = 'none';
+                btn.innerHTML = '🤖';
+                btn.className = 'floating-chatbot';
+                
+                // Streamlit에 상태 변경 알림
+                window.parent.document.dispatchEvent(new CustomEvent('chatbot-close'));
             }} else {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue', 
-                    key: 'chatbot_toggle',
-                    value: 'open'
-                }}, '*');
+                // 챗봇 열기
+                popup.style.display = 'block';
+                btn.innerHTML = '✕';
+                btn.className = 'floating-chatbot active';
+                
+                // 메시지 영역 스크롤 맨 아래로
+                scrollToBottom();
+                
+                // Streamlit에 상태 변경 알림
+                window.parent.document.dispatchEvent(new CustomEvent('chatbot-open'));
             }}
         }}
         
-        // 메시지가 추가될 때마다 스크롤을 아래로
-        const messagesContainer = document.getElementById('chatbot-messages');
-        if (messagesContainer) {{
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        // 엔터키 처리
+        function handleKeyPress(event) {{
+            if (event.key === 'Enter') {{
+                sendMessage();
+            }}
         }}
+        
+        // 메시지 전송
+        function sendMessage() {{
+            const input = document.getElementById('chatbot-input');
+            const message = input.value.trim();
+            
+            if (message) {{
+                // 사용자 메시지 추가
+                addMessage(message, 'user');
+                input.value = '';
+                
+                // Streamlit에 메시지 전송 알림
+                const event = new CustomEvent('chatbot-message', {{
+                    detail: {{ message: message }}
+                }});
+                window.parent.document.dispatchEvent(event);
+            }}
+        }}
+        
+        // 메시지 추가 함수
+        function addMessage(content, role) {{
+            const messagesContainer = document.getElementById('chatbot-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chatbot-message ${{role}}`;
+            messageDiv.innerHTML = `
+                <div class='message-bubble ${{role}}'>
+                    ${{content}}
+                </div>
+            `;
+            messagesContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }}
+        
+        // 스크롤 맨 아래로
+        function scrollToBottom() {{
+            const messagesContainer = document.getElementById('chatbot-messages');
+            if (messagesContainer) {{
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }}
+        }}
+        
+        // 초기 스크롤 설정
+        setTimeout(scrollToBottom, 100);
     </script>
     """
     
-    st.components.v1.html(chatbot_html, height=0)
+    # HTML 컴포넌트 렌더링 (높이를 600으로 설정)
+    st.components.v1.html(chatbot_html, height=600)
     
-    # 챗봇 토글 처리
-    chatbot_toggle = st.session_state.get('chatbot_toggle_value', None)
-    if chatbot_toggle == 'open' and not st.session_state.chatbot_open:
-        st.session_state.chatbot_open = True
-        st.rerun()
-    elif chatbot_toggle == 'close' and st.session_state.chatbot_open:
-        st.session_state.chatbot_open = False
-        st.rerun()
+    # JavaScript 이벤트 리스너 (별도 컴포넌트로)
+    event_listener_html = """
+    <script>
+        // Streamlit 이벤트 리스너
+        document.addEventListener('chatbot-open', function() {
+            window.parent.postMessage({type: 'chatbot-state', value: 'open'}, '*');
+        });
+        
+        document.addEventListener('chatbot-close', function() {
+            window.parent.postMessage({type: 'chatbot-state', value: 'close'}, '*');
+        });
+        
+        document.addEventListener('chatbot-message', function(e) {
+            window.parent.postMessage({
+                type: 'chatbot-message', 
+                value: e.detail.message
+            }, '*');
+        });
+    </script>
+    """
     
-    # 챗봇이 열려있을 때 입력 영역 표시
-    if st.session_state.chatbot_open:
-        st.markdown("""
-            <div style="position: fixed; bottom: 170px; right: 30px; width: 380px; z-index: 1003;">
-                <div style="background: white; padding: 1rem; border-top: 1px solid #e2e8f0; border-radius: 0 0 15px 15px;">
-        """, unsafe_allow_html=True)
-        
-        # 입력 컨테이너
-        input_container = st.container()
-        with input_container:
-            col1, col2 = st.columns([4, 1])
-            
-            with col1:
-                user_input = st.text_input(
-                    "",
-                    key="floating_chat_input",
-                    placeholder="메시지를 입력하세요...",
-                    label_visibility="collapsed"
-                )
-            
-            with col2:
-                send_button = st.button("🚀", key="floating_send_btn", use_container_width=True)
-        
-        st.markdown("</div></div>", unsafe_allow_html=True)
-        
-        # 엔터키 처리를 위한 JavaScript
-        st.components.v1.html("""
-            <script>
-                const input = window.parent.document.querySelector('[data-testid="stTextInput"] input');
-                if (input) {
-                    input.addEventListener('keydown', function(e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const sendBtn = window.parent.document.querySelector('[data-testid="stButton"] button');
-                            if (sendBtn) {
-                                sendBtn.click();
-                            }
-                        }
-                    });
-                }
-            </script>
-        """, height=0)
-        
-        # 메시지 전송 처리
-        if (send_button or user_input) and user_input.strip():
-            # 사용자 메시지 추가
-            st.session_state.chatbot_messages.append({
-                "role": "user",
-                "content": user_input
-            })
-            
-            # 컨텍스트 정보
-            context = f"""
-            현재 페이지: {st.session_state.get('current_page', '홈')}
-            사용자 탭 수: {len(current_user_sites)}
-            총 링크 수: {total_links}
-            AIH 설비 링크 수: {total_aih_links}
-            """
-            
-            # AI 응답 생성 (실제 함수로 교체 필요)
-            bot_response = get_chatbot_response(user_input, context)
-            
-            # 봇 응답 추가
-            st.session_state.chatbot_messages.append({
-                "role": "assistant",
-                "content": bot_response
-            })
-            
-            # 입력 필드 초기화
-            st.session_state.floating_chat_input = ""
-            st.rerun()
+    st.components.v1.html(event_listener_html, height=0)
 
 # ---- 관리자 ID 및 설정 ----
 ADMIN_IDS = ["admin"]
@@ -1621,7 +1640,7 @@ else:
 with st.sidebar:
     st.markdown(f"""
         <div style="background: linear-gradient(135deg, #d97706 0%, #ea580c 100%); 
-                    color: white; padding: 2rem; border-radius: 10px; margin-bottom: 1rem;">
+                    color: white; padding: 1rem; border-radius: 10px; margin-bottom: 1rem;">
             <h3 style="margin: 0; color: white;">🔗 E1 Link</h3>
             <p style="margin: 0.5rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">
                 {current_team} | {viewing_user_id}
