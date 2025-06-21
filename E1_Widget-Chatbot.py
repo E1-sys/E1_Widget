@@ -758,7 +758,6 @@ def get_chatbot_response(message, context=""):
         
         return "🤖 응답을 생성할 수 없습니다. 다시 시도해주세요."
         
-        )
         
     except Exception as e:
         st.error(f"챗봇 오류 상세: {str(e)}")  # 디버깅용
