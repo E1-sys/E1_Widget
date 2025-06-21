@@ -729,6 +729,7 @@ def handle_chatbot_message(user_input):
             st.session_state[user_key].append({
                 "role": "assistant", 
                 "content": f"💡 대화 최적화를 위해 {deleted_count}개의 이전 대화를 정리했습니다."
+            })
     })
     
     # 대화 내역 관리 (3회 초과 시 자동 삭제)
