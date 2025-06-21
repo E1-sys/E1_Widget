@@ -345,7 +345,7 @@ st.markdown("""
         
         /* 채팅 메시지 컨테이너 */
         .chatbot-messages-container {
-            max-height: 300px;
+            max-height: 250px;
             overflow-y: auto;
             padding: 0.5rem 0;
             border: 1px solid #e2e8f0;
@@ -910,7 +910,7 @@ def get_chatbot_response(message, context="", user_key=None):
         response = model.generate_content(
             full_prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=1200,
+                max_output_tokens=1000,
                 temperature=0.7
             )
         )
