@@ -490,7 +490,6 @@ def render_chatbot_content():
     total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
     
     st.markdown(f"**등록된 링크**: {total_links}개")
-    st.markdown("---")
     
     # 채팅 메시지 표시 영역 (높이 제한)
     with st.container():
@@ -525,10 +524,7 @@ def render_chatbot_content():
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
+
     
     # 입력 영역 개선 (엔터 전송, 입력창 초기화)
     col1 = st.columns([4])
