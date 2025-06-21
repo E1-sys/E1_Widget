@@ -580,7 +580,6 @@ def render_chatbot_content():
         **시스템 도움말:**
         - "링크 추가 방법은?"
         - "즐겨찾기 설정 방법은?"
-        - "테스트"
         """)
 
 def handle_chatbot_message(user_input):
