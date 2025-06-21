@@ -531,7 +531,7 @@ def render_chatbot_content():
     st.markdown("---")
     
     # 입력 영역 개선 (엔터 전송, 입력창 초기화)
-    col1, col2 = st.columns([4, 1])
+    col1 = st.columns([4, 1])
     
     # 입력창 초기화를 위한 키 생성
     input_key = f"chatbot_input_{viewing_user_id}_{current_team}"
@@ -545,14 +545,11 @@ def render_chatbot_content():
                 label_visibility="collapsed",
                 key=f"chat_input_{viewing_user_id}_{current_team}"
             )
-            
-
-    with col2:
-        # 별도 전송 버튼
-        send_button = st.button("전송", key=f"chatbot_send_{viewing_user_id}_{current_team}", use_container_width=True)
+            # 숨겨진 submit 버튼 (엔터키로 전송)
+            form_submit = st.form_submit_button("전송", key=f"chatbot_send_{viewing_user_id}_{current_team}", use_container_width=True)
     
     # 전송 처리 (form 제출 또는 버튼 클릭)
-    if (send_button) and user_input and user_input.strip():
+    if (form_submit) and user_input and user_input.strip():
         handle_chatbot_message(user_input.strip())
         st.rerun()
     
