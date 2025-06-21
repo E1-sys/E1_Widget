@@ -296,8 +296,8 @@ st.markdown("""
 
         .floating-chatbot-container {
             position: fixed;
-            bottom: 30px;
-            left: 30px;
+            bottom: 20px;
+            left: 20px;
             z-index: 1000;
         }
         
@@ -468,7 +468,7 @@ def render_floating_chatbot():
         st.markdown("""
             <div class="floating-chatbot-container">
                 <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    안녕하세요 제발 저를 봐주세요 왜 안뜨는거야
+                    아이콘
                 </div>
             </div>
         """, unsafe_allow_html=True)
