@@ -21,6 +21,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import re
 
+render_floating_chatbot()
+
 # ---- 페이지 설정 ----
 st.set_page_config(
     page_title="E1 Link - AIH Portal Hub",
