@@ -457,30 +457,181 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def render_floating_chatbot():
     """플로팅 챗봇 UI 렌더링"""
+    if "floating_chat_open" not in st.session_state:
+        st.session_state.floating_chat_open = False
     
-    # 챗봇 세션 상태 초기화
-    if 'chatbot_messages' not in st.session_state:
-        st.session_state.chatbot_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-        ]
+    if "floating_chat_history" not in st.session_state:
+        st.session_state.floating_chat_history = []
     
-    if 'chatbot_input' not in st.session_state:
-        st.session_state.chatbot_input = ""
+    # 플로팅 챗봇 CSS
+    st.markdown("""
+    <style>
+    .floating-chat-button {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
     
-    # 플로팅 챗봇 버튼과 팝오버
-    with st.container():
-        # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
-        st.markdown("""
-            <div class="floating-chatbot-container">
-                <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    🤖
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # 팝오버를 사용한 챗봇 창
-        with st.popover("💬 AI 어시스턴트", use_container_width=False):
-            render_chatbot_content()
+    .floating-chat-button:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+    
+    .floating-chat-window {
+        position: fixed;
+        bottom: 90px;
+        left: 20px;
+        width: 350px;
+        height: 500px;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        background: #f8f9fa;
+    }
+    
+    .chat-input-area {
+        padding: 10px;
+        border-top: 1px solid #e0e0e0;
+        background: white;
+    }
+    
+    .user-message {
+        background: #667eea;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 15px 15px 5px 15px;
+        margin: 5px 0;
+        margin-left: 20px;
+        max-width: 80%;
+        float: right;
+        clear: both;
+    }
+    
+    .bot-message {
+        background: white;
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 15px 15px 15px 5px;
+        margin: 5px 0;
+        margin-right: 20px;
+        max-width: 80%;
+        float: left;
+        clear: both;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # 챗봇 토글 버튼
+    col1, col2 = st.columns([1, 1])
+    with col2:
+        if st.button("💬", help="AI 챗봇", key="floating_chat_toggle"):
+            st.session_state.floating_chat_open = not st.session_state.floating_chat_open
+    
+    # 챗봇 창이 열려있을 때
+    if st.session_state.floating_chat_open:
+        with st.container():
+            # 챗봇 헤더
+            st.markdown("### 🤖 E1 Link AI Assistant")
+            
+            # 챗봇 메시지 영역
+            chat_container = st.container()
+            with chat_container:
+                # 기존 대화 히스토리 표시
+                for i, chat in enumerate(st.session_state.floating_chat_history):
+                    if chat["role"] == "user":
+                        st.markdown(f"""
+                        <div style="text-align: right; margin: 10px 0;">
+                            <div style="display: inline-block; background: #667eea; color: white; 
+                                       padding: 8px 12px; border-radius: 15px 15px 5px 15px; 
+                                       max-width: 80%;">
+                                {chat["content"]}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""
+                        <div style="text-align: left; margin: 10px 0;">
+                            <div style="display: inline-block; background: white; color: #333; 
+                                       padding: 8px 12px; border-radius: 15px 15px 15px 5px; 
+                                       max-width: 80%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                                {chat["content"]}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            # 채팅 입력 영역
+            with st.form(key="floating_chat_form", clear_on_submit=True):
+                user_input = st.text_input("메시지를 입력하세요...", key="floating_chat_input", placeholder="설비 정보나 링크에 대해 물어보세요!")
+                col1, col2, col3 = st.columns([1, 1, 1])
+                
+                with col2:
+                    submit_button = st.form_submit_button("전송", use_container_width=True)
+                
+                with col3:
+                    clear_button = st.form_submit_button("대화 초기화", use_container_width=True)
+            
+            # 메시지 전송 처리
+            if submit_button and user_input:
+                # 사용자 메시지 추가
+                st.session_state.floating_chat_history.append({
+                    "role": "user", 
+                    "content": user_input,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                
+                # AI 응답 생성
+                with st.spinner("AI가 답변을 생성 중입니다..."):
+                    bot_response = get_chatbot_response(user_input)
+                
+                # AI 응답 추가
+                st.session_state.floating_chat_history.append({
+                    "role": "assistant", 
+                    "content": bot_response,
+                    "timestamp": datetime.now().strftime("%H:%M")
+                })
+                
+                st.rerun()
+            
+            # 대화 초기화
+            if clear_button:
+                st.session_state.floating_chat_history = []
+                st.success("대화가 초기화되었습니다!")
+                st.rerun()
+            
+            # 닫기 버튼
+            if st.button("❌ 닫기", key="close_floating_chat"):
+                st.session_state.floating_chat_open = False
+                st.rerun()
 
 def render_chatbot_content():
     """챗봇 팝오버 내용 렌더링"""
