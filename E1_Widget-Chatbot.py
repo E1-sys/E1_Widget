@@ -1542,7 +1542,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     # 네비게이션 메뉴
-    nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단", "🤖 AI 어시스턴트"]
+    nav_options = ["🏠 홈", "🔗 링크 바로가기", "📖 사용자 매뉴얼", "🔧 설비 상태진단"]
     if is_admin:
         nav_options.extend(["⚙️ 팀별 기본 탭 관리", "💾 데이터 백업 관리"])
     
@@ -1896,128 +1896,6 @@ elif st.session_state.current_page == "링크 바로가기":
                     st.info("이 탭에는 아직 링크가 없습니다. 새 링크를 추가해보세요.")
     else:
         st.info("탭이 없습니다. 사이드바에서 새 탭을 추가해주세요.")
-
-# AI 어시스턴트 페이지 (기존 코드 개선)
-elif st.session_state.current_page == "AI 어시스턴트":
-    st.markdown("""
-        <div class="main-header">
-            <h1>🤖 AI 어시스턴트</h1>
-            <p>E1 Link 시스템 사용법 및 설비 관련 질문 응답</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # 사용 가능한 명령어 안내
-    with st.expander("💡 사용 가능한 질문 예시"):
-        st.markdown("""
-        **설비 관련 질문:**
-        - "AIH 설비 링크를 모두 모아줘"
-        - "펌프 설비 모두 모아줘"
-        - "인천 지역 설비 모아줘"
-        - "대산 기지 설비 보여줘"
-        
-        **탭 및 링크 관리:**
-        - "[탭명] 탭의 링크 리스트 보여줘"
-        - "즐겨찾기한 링크들 보여줘"
-        - "전체 링크 개수 알려줘"
-        
-        **시스템 사용법:**
-        - "링크 추가하는 방법 알려줘"
-        - "즐겨찾기 설정 방법은?"
-        - "탭 관리 방법 설명해줘"
-        """)
-    
-    # 채팅 메시지 초기화
-    if 'main_chat_messages' not in st.session_state:
-        st.session_state.main_chat_messages = [
-            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-        ]
-    
-    # 현재 사용자 통계 표시
-    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
-    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
-    total_aih_links = sum(
-        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
-        for tab_data in current_user_sites.values()
-    )
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("등록된 링크", total_links)
-    with col2:
-        st.metric("AIH 설비 링크", total_aih_links)
-    with col3:
-        st.metric("활성 탭", len(current_user_sites))
-    
-    # 채팅 영역
-    chat_container = st.container()
-    
-    with chat_container:
-        # 채팅 메시지 표시
-        for idx, msg in enumerate(st.session_state.main_chat_messages):
-            if msg["role"] == "user":
-                st.markdown(f"""
-                    <div style="display: flex; justify-content: flex-end; margin: 1rem 0;">
-                        <div style="background: #e1f5fe; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%;">
-                            <strong>You:</strong> {msg["content"]}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                    <div style="display: flex; justify-content: flex-start; margin: 1rem 0;">
-                        <div style="background: #f3e5f5; padding: 0.5rem 1rem; border-radius: 1rem; max-width: 70%; white-space: pre-line;">
-                            <strong>🤖 AI:</strong> {msg["content"]}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-    
-    # 채팅 입력 영역
-    st.markdown("---")
-    col1, col2, col3 = st.columns([6, 1, 1])
-    
-    with col1:
-        user_input = st.text_input(
-            "메시지를 입력하세요...", 
-            key="main_chat_input",
-            placeholder="예: 인천 지역 설비 모아줘"
-        )
-    
-    with col2:
-        if st.button("전송", key="main_send_chat", use_container_width=True):
-            if user_input.strip():
-                # 사용자 메시지 추가
-                st.session_state.main_chat_messages.append({
-                    "role": "user", 
-                    "content": user_input
-                })
-                
-                # 컨텍스트 정보 추가
-                context = f"""
-                현재 페이지: {st.session_state.get('current_page', '홈')}
-                사용자 탭 수: {len(current_user_sites)}
-                총 링크 수: {total_links}
-                AIH 설비 링크 수: {total_aih_links}
-                """
-                
-                # AI 응답 생성
-                with st.spinner("AI가 답변을 생성하고 있습니다..."):
-                    bot_response = get_chatbot_response(user_input, context)
-                
-                # 봇 응답 추가
-                st.session_state.main_chat_messages.append({
-                    "role": "assistant", 
-                    "content": bot_response
-                })
-                
-                st.rerun()
-    
-    with col3:
-        if st.button("🗑️", key="main_clear_chat", help="채팅 내역 삭제"):
-            st.session_state.main_chat_messages = [
-                {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
-            ]
-            st.rerun()
-
         
 elif st.session_state.current_page == "사용자 매뉴얼":
     # ---- 사용자 매뉴얼 페이지 ----
