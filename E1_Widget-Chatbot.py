@@ -727,8 +727,7 @@ def get_chatbot_response(message, context=""):
         ] + conversation_history
         
         response = model.chat.completions.create(
-            model=CHATBOT_MODEL,
-            CHATBOT_MODEL = "gemma-3n-e4b-it"
+            CHATBOT_MODEL = "gemma-3n-e4b-it",
             model = genai.GenerativeModel(CHATBOT_MODEL)
             messages=messages,
             max_tokens=500,  # 플로팅 챗봇은 짧은 답변이 적합
