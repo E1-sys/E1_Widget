@@ -293,6 +293,7 @@ st.markdown("""
         
         .bottom-links a:hover {
             color: #ea580c;
+        }
 
         .floating-chatbot-container {
             position: fixed;
@@ -470,13 +471,13 @@ def render_floating_chatbot():
     # 플로팅 챗봇 버튼과 팝오버
     with st.container():
         # 플로팅 챗봇 아이콘 (CSS로 위치 고정)
-        st.markdown("""
+        components.html("""
             <div class="floating-chatbot-container">
                 <div class="floating-chatbot-icon" id="chatbot-trigger">
                     🤖
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """, height=0)
         
         # 팝오버를 사용한 챗봇 창
         with st.popover("💬 AI 어시스턴트", use_container_width=False):
@@ -1442,43 +1443,6 @@ if site_key not in st.session_state:
 
 current_sites = st.session_state[site_key]
 current_pages = st.session_state.get(page_key, [])
-
-def apply_default_tabs_to_existing_users(team):
-    """기본 탭 변경사항을 기존 사용자들에게 적용"""
-    default_data = load_default_tabs(team)
-    
-    # 해당 팀의 모든 사용자 파일 찾기
-    all_files = os.listdir(SAVE_DIR)
-    user_files = [f for f in all_files if f.endswith(f"_{team}_sites.json")]
-    
-    updated_users = []
-    for file in user_files:
-        user_id = file.split("_")[0]
-        file_path = os.path.join(SAVE_DIR, file)
-        
-        # 사용자 데이터 로드
-        with open(file_path, "r", encoding="utf-8") as f:
-            user_data = json.load(f)
-        
-        # 기본 탭과 병합 (기존 사용자 데이터 우선)
-        for tab_name, tab_data in default_data.items():
-            if tab_name not in user_data:
-                # 새로운 기본 탭 추가
-                user_data[tab_name] = copy.deepcopy(tab_data)
-            else:
-                # 기존 탭에 새로운 기본 링크 추가 (중복 체크)
-                existing_urls = [link["url"] for link in user_data[tab_name]["links"]]
-                for default_link in tab_data["links"]:
-                    if default_link["url"] not in existing_urls:
-                        user_data[tab_name]["links"].append(copy.deepcopy(default_link))
-        
-        # 업데이트된 데이터 저장
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(user_data, f, ensure_ascii=False, indent=2)
-        
-        updated_users.append(user_id)
-    
-    return updated_users
 
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
