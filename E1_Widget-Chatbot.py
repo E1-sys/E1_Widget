@@ -23,6 +23,171 @@ import re
 
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# 플로팅 챗봇 컴포넌트
+def render_floating_chatbot():
+    # 챗봇 상태 초기화
+    if 'chatbot_open' not in st.session_state:
+        st.session_state.chatbot_open = False
+    if 'chatbot_messages' not in st.session_state:
+        st.session_state.chatbot_messages = [
+            {"role": "assistant", "content": "안녕하세요! E1 Link AI 어시스턴트입니다. 등록하신 링크들을 분석하여 관련 질문에 답변드립니다. 궁금한 것이 있으시면 언제든 질문해주세요!"}
+        ]
+    
+    # 플로팅 버튼 HTML
+    chatbot_button_class = "floating-chatbot active" if st.session_state.chatbot_open else "floating-chatbot"
+    chatbot_icon = "✕" if st.session_state.chatbot_open else "🤖"
+    
+    # 현재 사용자 통계
+    current_user_sites = st.session_state.get(f'sites_{viewing_user_id}_{current_team}', {})
+    total_links = sum(len(tab_data.get("links", [])) for tab_data in current_user_sites.values())
+    total_aih_links = sum(
+        sum(1 for link in tab_data.get("links", []) if "aih.e1.co.kr" in link.get("url", ""))
+        for tab_data in current_user_sites.values()
+    )
+    
+    # 챗봇 HTML 생성
+    chatbot_html = f"""
+    <div id="floating-chatbot-container">
+        <button class="{chatbot_button_class}" onclick="toggleChatbot()">
+            {chatbot_icon}
+        </button>
+        
+        {"<div class='chatbot-popup' id='chatbot-popup'>" if st.session_state.chatbot_open else ""}
+            {"<div class='chatbot-header'>" if st.session_state.chatbot_open else ""}
+                {"<div class='chatbot-title'>" if st.session_state.chatbot_open else ""}
+                    {"🤖 AI 어시스턴트" if st.session_state.chatbot_open else ""}
+                {"</div>" if st.session_state.chatbot_open else ""}
+                {"<button class='chatbot-close' onclick='toggleChatbot()'>✕</button>" if st.session_state.chatbot_open else ""}
+            {"</div>" if st.session_state.chatbot_open else ""}
+            
+            {"<div class='chatbot-messages' id='chatbot-messages'>" if st.session_state.chatbot_open else ""}
+    """
+    
+    # 메시지 렌더링
+    if st.session_state.chatbot_open:
+        for msg in st.session_state.chatbot_messages:
+            role_class = "user" if msg["role"] == "user" else "assistant"
+            chatbot_html += f"""
+                <div class='chatbot-message {role_class}'>
+                    <div class='message-bubble {role_class}'>
+                        {msg["content"]}
+                    </div>
+                </div>
+            """
+    
+    chatbot_html += f"""
+            {"</div>" if st.session_state.chatbot_open else ""}
+        {"</div>" if st.session_state.chatbot_open else ""}
+    </div>
+    
+    <script>
+        function toggleChatbot() {{
+            const isOpen = {str(st.session_state.chatbot_open).lower()};
+            if (isOpen) {{
+                window.parent.postMessage({{
+                    type: 'streamlit:setComponentValue',
+                    key: 'chatbot_toggle',
+                    value: 'close'
+                }}, '*');
+            }} else {{
+                window.parent.postMessage({{
+                    type: 'streamlit:setComponentValue', 
+                    key: 'chatbot_toggle',
+                    value: 'open'
+                }}, '*');
+            }}
+        }}
+        
+        // 메시지가 추가될 때마다 스크롤을 아래로
+        const messagesContainer = document.getElementById('chatbot-messages');
+        if (messagesContainer) {{
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }}
+    </script>
+    """
+    
+    st.components.v1.html(chatbot_html, height=0)
+    
+    # 챗봇 토글 처리
+    chatbot_toggle = st.session_state.get('chatbot_toggle_value', None)
+    if chatbot_toggle == 'open' and not st.session_state.chatbot_open:
+        st.session_state.chatbot_open = True
+        st.rerun()
+    elif chatbot_toggle == 'close' and st.session_state.chatbot_open:
+        st.session_state.chatbot_open = False
+        st.rerun()
+    
+    # 챗봇이 열려있을 때 입력 영역 표시
+    if st.session_state.chatbot_open:
+        st.markdown("""
+            <div style="position: fixed; bottom: 170px; right: 30px; width: 380px; z-index: 1003;">
+                <div style="background: white; padding: 1rem; border-top: 1px solid #e2e8f0; border-radius: 0 0 15px 15px;">
+        """, unsafe_allow_html=True)
+        
+        # 입력 컨테이너
+        input_container = st.container()
+        with input_container:
+            col1, col2 = st.columns([4, 1])
+            
+            with col1:
+                user_input = st.text_input(
+                    "",
+                    key="floating_chat_input",
+                    placeholder="메시지를 입력하세요...",
+                    label_visibility="collapsed"
+                )
+            
+            with col2:
+                send_button = st.button("🚀", key="floating_send_btn", use_container_width=True)
+        
+        st.markdown("</div></div>", unsafe_allow_html=True)
+        
+        # 엔터키 처리를 위한 JavaScript
+        st.components.v1.html("""
+            <script>
+                const input = window.parent.document.querySelector('[data-testid="stTextInput"] input');
+                if (input) {
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const sendBtn = window.parent.document.querySelector('[data-testid="stButton"] button');
+                            if (sendBtn) {
+                                sendBtn.click();
+                            }
+                        }
+                    });
+                }
+            </script>
+        """, height=0)
+        
+        # 메시지 전송 처리
+        if (send_button or user_input) and user_input.strip():
+            # 사용자 메시지 추가
+            st.session_state.chatbot_messages.append({
+                "role": "user",
+                "content": user_input
+            })
+            
+            # 컨텍스트 정보
+            context = f"""
+            현재 페이지: {st.session_state.get('current_page', '홈')}
+            사용자 탭 수: {len(current_user_sites)}
+            총 링크 수: {total_links}
+            AIH 설비 링크 수: {total_aih_links}
+            """
+            
+            # AI 응답 생성 (실제 함수로 교체 필요)
+            bot_response = get_chatbot_response(user_input, context)
+            
+            # 봇 응답 추가
+            st.session_state.chatbot_messages.append({
+                "role": "assistant",
+                "content": bot_response
+            })
+            
+            # 입력 필드 초기화
+            st.session_state.floating_chat_input = ""
+            st.rerun()
 
 class SSOWebScraper:
     def __init__(self):
@@ -419,6 +584,7 @@ def get_chatbot_response(message, context=""):
     
     except Exception as e:
         return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
+        
 def enhance_response_with_links(response, user_message, user_sites):
     """응답에 링크 정보를 추가로 강화"""
     message_lower = user_message.lower()
@@ -546,7 +712,7 @@ def is_mobile():
     except Exception:
         return False
 
-# ---- 전역 CSS 스타일 ----
+# ---- 전역 CSS 스타일 (기존 스타일에 추가) ----
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap');
@@ -632,7 +798,7 @@ st.markdown("""
         
         /* 링크 카드 스타일 */
         .link-card {
-            height: 40px;  /* 원하는 높이로 조정 */
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: left;
@@ -787,10 +953,214 @@ st.markdown("""
             color: #ea580c;
         }
         
+        /* 플로팅 챗봇 버튼 스타일 */
+        .floating-chatbot {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            z-index: 1001;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(217, 119, 6, 0.4);
+            transition: all 0.3s ease;
+            border: none;
+            outline: none;
+        }
+        
+        .floating-chatbot:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(217, 119, 6, 0.6);
+        }
+        
+        .floating-chatbot.active {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        /* 챗봇 팝업 컨테이너 */
+        .chatbot-popup {
+            position: fixed;
+            bottom: 170px;
+            right: 30px;
+            width: 380px;
+            height: 500px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 1002;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        
+        /* 챗봇 헤더 */
+        .chatbot-header {
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            color: white;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .chatbot-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .chatbot-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 4px;
+            transition: background 0.2s ease;
+        }
+        
+        .chatbot-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        /* 챗봇 메시지 영역 */
+        .chatbot-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background: #f8fafc;
+        }
+        
+        .chatbot-message {
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.3s ease;
+        }
+        
+        .chatbot-message.user {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .chatbot-message.assistant {
+            display: flex;
+            justify-content: flex-start;
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            word-wrap: break-word;
+            white-space: pre-line;
+        }
+        
+        .message-bubble.user {
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .message-bubble.assistant {
+            background: white;
+            color: #374151;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+        
+        /* 챗봇 입력 영역 */
+        .chatbot-input-area {
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .chatbot-input-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .chatbot-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            outline: none;
+            font-size: 0.9rem;
+            transition: border-color 0.2s ease;
+        }
+        
+        .chatbot-input:focus {
+            border-color: #d97706;
+        }
+        
+        .chatbot-send-btn {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #d97706 0%, #ea580c 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+        
+        .chatbot-send-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .chatbot-send-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* 애니메이션 */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         /* 모바일 반응형 */
         @media (max-width: 768px) {
             .main-header h1 {
                 font-size: 2rem;
+            }
+            
+            .floating-chatbot {
+                bottom: 80px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+            
+            .chatbot-popup {
+                bottom: 140px;
+                right: 20px;
+                left: 20px;
+                width: auto;
+                height: 400px;
             }
             
             .bottom-links {
@@ -883,6 +1253,24 @@ st.markdown("""
         .status-maintenance {
             background: #fef3c7;
             color: #92400e;
+        }
+        
+        /* 스크롤바 스타일링 */
+        .chatbot-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .chatbot-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        .chatbot-messages::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        .chatbot-messages::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
     </style>
 """, unsafe_allow_html=True)
