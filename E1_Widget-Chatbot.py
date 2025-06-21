@@ -21,8 +21,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import re
 
-render_floating_chatbot()
-
 # ---- 페이지 설정 ----
 st.set_page_config(
     page_title="E1 Link - AIH Portal Hub",
@@ -1315,6 +1313,7 @@ if not st.session_state.authenticated:
                 st.session_state.team = team
                 st.session_state.user_id = user_id.strip()
                 st.rerun()
+    render_floating_chatbot()
     st.stop()
 
 # ---- 메인 화면 ----
