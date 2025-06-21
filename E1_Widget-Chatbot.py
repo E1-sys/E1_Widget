@@ -468,7 +468,7 @@ def render_floating_chatbot():
         st.markdown("""
             <div class="floating-chatbot-container">
                 <div class="floating-chatbot-icon" id="chatbot-trigger">
-                    🤖
+                    안녕하세요 제발 저를 봐주세요 왜 안뜨는거야
                 </div>
             </div>
         """, unsafe_allow_html=True)
