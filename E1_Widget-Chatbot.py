@@ -1059,6 +1059,10 @@ def get_chatbot_response(message, context=""):
     except Exception as e:
         return f"죄송합니다. 응답 생성 중 오류가 발생했습니다: {str(e)}"
 
+def add_floating_chatbot():
+    """메인 애플리케이션에 플로팅 챗봇 추가"""
+    render_floating_chatbot()
+
 
 # ---- 관리자 ID 및 설정 ----
 ADMIN_IDS = ["admin"]
@@ -2256,6 +2260,8 @@ elif st.session_state.current_page == "데이터 백업 관리" and is_admin:
         st.metric("기본 탭 설정 파일", default_files)
     with col3:
         st.metric("총 파일 수", sites_files + default_files)
+
+add_floating_chatbot()
 
 # ---- 하단 고정 포털 링크 ----
 st.markdown("""
