@@ -298,6 +298,10 @@ st.markdown("""
             position: fixed;
             bottom: 20px;
             left: 20px;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
             border-top: 3px solid #d97706;
             z-index: 1000;
         }
