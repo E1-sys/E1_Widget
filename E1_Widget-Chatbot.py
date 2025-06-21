@@ -20,7 +20,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import re
-from streamlit_float import *
+from streamlit_float import float_parent, float_box
 
 # ---- 페이지 설정 ----
 st.set_page_config(
