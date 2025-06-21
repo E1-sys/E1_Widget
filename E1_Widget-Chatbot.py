@@ -1557,8 +1557,6 @@ def apply_default_tabs_to_existing_users(team):
     
     return updated_users
 
-render_floating_chatbot()
-
 # ---- 로그인 화면 ----
 if not st.session_state.authenticated:
     st.markdown("""
@@ -1745,6 +1743,7 @@ def apply_default_tabs_to_existing_users(team):
     
     return updated_users
 
+render_floating_chatbot()
 # ---- 페이지 라우팅 ----
 if st.session_state.current_page == "홈":
     # ---- 대시보드 페이지 ----
