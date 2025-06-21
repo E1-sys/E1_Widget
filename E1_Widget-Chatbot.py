@@ -19,6 +19,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+import re
 
 # SSL 인증서 검증 비활성화
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
