@@ -738,7 +738,7 @@ def get_chatbot_response(message, context=""):
         
         return response.choices[0].message.content.strip()
         
-    except Exception as st.error(e):
+    except Exception as e:
         st.error(f"챗봇 응답 생성 중 오류: {str(e)}")
         return "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 🤖"
 
