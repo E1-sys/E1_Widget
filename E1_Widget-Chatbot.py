@@ -911,9 +911,6 @@ def render_floating_chatbot():
                 st.session_state.floating_chat_open = False
                 st.rerun()
 
-# 플로팅 챗봇 렌더링 (모든 페이지에서)
-render_floating_chatbot()
-
 
 class SSOWebScraper:
     def __init__(self):
@@ -1472,6 +1469,7 @@ def apply_default_tabs_to_existing_users(team):
 
 # ---- 로그인 화면 ----
 if not st.session_state.authenticated:
+    render_floating_chatbot()
     st.markdown("""
         <div class="main-header">
             <h1>🔗 E1 Link</h1>
