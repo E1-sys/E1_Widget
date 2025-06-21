@@ -710,6 +710,8 @@ def get_chatbot_response(message, context=""):
         # 대화 히스토리 구성 (플로팅 챗봇용 - 최근 3개 대화만)
         conversation_history = []
         chat_history = st.session_state.get("floating_chat_history", [])
+        if "chat_history" not in st.session_state:
+            st.session_state.chat_history = []
         
         # 최근 3개 대화만 컨텍스트로 사용 (성능 최적화)
         for chat in chat_history[-6:]:  # 최근 3개 질문-답변 쌍
@@ -736,7 +738,7 @@ def get_chatbot_response(message, context=""):
         
         return response.choices[0].message.content.strip()
         
-    except Exception as e:
+    except Exception as st.error(e):
         st.error(f"챗봇 응답 생성 중 오류: {str(e)}")
         return "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 🤖"
 
